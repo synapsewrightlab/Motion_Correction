@@ -1,0 +1,26 @@
+name: motion_correction
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python >= 3.11,<3.12
+  - tifffile
+  - torch >= 1.13.1
+  - numpy >= 1.24.3
+  - numba >= 0.57.0
+  - scipy >= 1.9.0
+  - scikit-learn
+  - scanimage-tiff-reader >= 1.4.1
+  - qtpy
+  - superqt
+  - pyqt6
+  - pyqt6.sip
+  - pyqtgraph
+  - paramiko
+  - nd2
+  - sbxreader
+  - h5py
+  - opencv-python-headless
+  - xmltodict
+  - dcimg
+  - natsort
