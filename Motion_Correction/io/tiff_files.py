@@ -232,7 +232,7 @@ def tiff_to_binary(databases, settings, reg_file, reg_file_chan2):
                         databases[jk]["nframes"] = 0
                         databases[jk]["frames_per_file"] = np.zeros(len(files), "int")
                         databases[jk]["frames_per_folder"] = np.zeros(first_files.sum(), "int")
-                        databases[jk]["meanImg"] = np.zeros((Ly, Lx), "float64")
+                        databases[jk]["meanImg_chan1"] = np.zeros((Ly, Lx), "float64")
                         if nchannels > 1:
                             databases[jk]["meanImg_chan2"] = np.zeros((Ly, Lx), "float64")
 
@@ -261,7 +261,7 @@ def tiff_to_binary(databases, settings, reg_file, reg_file_chan2):
                     else:
                         imk = im2write
                     reg_file[jk].write(bytearray(imk))
-                    databases[jk]["meanImg"] += imk.sum(axis=0).astype("float64")
+                    databases[jk]["meanImg_chan1"] += imk.sum(axis=0).astype("float64")
                     databases[jk]["nframes"] += imk.shape[0]
                     databases[jk]["frames_per_file"][i] += imk.shape[0]
                     databases[jk]["frames_per_folder"][which_folder] += imk.shape[0]
@@ -290,7 +290,7 @@ def tiff_to_binary(databases, settings, reg_file, reg_file_chan2):
 
     # write dbs and settings files
     for db in databases:
-        db["meanImg"] /= db["nframes"]
+        db["meanImg_chan1"] /= db["nframes"]
         if nchannels > 1:
             db["meanImg_chan2"] /= db["nframes"]
         np.save(db["save_path0"], db)
@@ -378,7 +378,7 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
         db["nframes"] = 0
         db["frames_per_folder"] = np.zeros(first_files.sum(), "int")
         db["frames_per_file"] = np.ones(len(files_Ch1), "int") if n_pages==1 else np.zeros(len(files_Ch1), "int")
-        db["meanImg"] = np.zeros(shape, np.float32)
+        db["meanImg_chan1"] = np.zeros(shape, np.float32)
         if nchannels > 1:
             db["meanImg_chan2"] = np.zeros(shape, np.float32)
 
@@ -412,7 +412,7 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
             # write to binary
             databases[ip]["nframes"] += 1
             databases[ip]["frames_per_folder"][0] += 1
-            databases[ip]["meanImg"] += im.astype(np.float32)
+            databases[ip]["meanImg_chan1"] += im.astype(np.float32)
             reg_file[ip].write(bytearray(im))
 
         else:
@@ -427,7 +427,7 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
                 ix += nframes
                 itot += nframes
                 reg_file[ip].write(bytearray(im))
-                databases[ip]["meanImg"] += im.astype(np.float32).sum(axis=0)
+                databases[ip]["meanImg_chan1"] += im.astype(np.float32).sum(axis=0)
                 databases[ip]["nframes"] += im.shape[0]
                 databases[ip]["frames_per_file"][ik] += nframes
                 databases[ip]["frames_per_folder"][0] += nframes
@@ -467,7 +467,7 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
     # Update the databases with image dimensions and mean image
     for db in databases:
         db["Ly"], db["Lx"] = shape
-        db["meanImg"] /= db["nframes"]
+        db["meanImg_chan1"] /= db["nframes"]
         if nchannels > 1:
             db["meanImg_chan2"] /= db["nframes"]
         # Save db and settings to each plane folder

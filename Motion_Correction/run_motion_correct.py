@@ -2,12 +2,15 @@ import os
 import time
 
 import torch
+import numpy as np
 import logging
+import contextlib
 
 from importlib.metadata import version
+from datetime import datetime
 from pathlib import Path
 
-from . import io
+from . import io, parameters, pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,9 @@ def run_motion_correction(database={}, settings={}):
     """
     start_time = time.time()
 
+    database = {**parameters.default_database(), **database}
+    settings = {**parameters.default_settings(), **settings}
+
     save_path = database["save_path0"]
 
     logger.info(version("Motion_Correction"))
@@ -38,9 +44,79 @@ def run_motion_correction(database={}, settings={}):
     # Set up the databases for each plane
     database["input_format"] = database.get("input_format", "tif")
     databases = io.io_utils.get_file_list(database)
-    
 
+    db_paths = [db["db_path"] for db in databases]
+    settings_path = [db["settings_path"] for db in databases]
+    save_folder = os.path.join(database["save_path0"], database["save_folder"])
+    np.save(os.path.join(save_folder, "db.npy"), database)
+    np.save(os.path.join(save_folder, "settings.npy"), settings)
+
+    # Convert raw images to binary files
+    databases = io.prep_image_files.prep_image_files(databases, settings)
+
+    logger.info("Wrote {} frames per binary, {} folders + {} channels, {:0.2f}sec".format(
+                databases[0]["nframes"], len(databases), databases[0]["nchannels"], 
+                time.time() - start_time)
+                )
     
+    # Prepare the run each plane
+    for ipl, (settings_path, db_path) in enumerate(zip(settings_path, db_paths)):
+        ops = np.load(settings_path, allow_pickle=True).item()
+        ops = {**ops, **settings}
+        db = np.load(db_path, allow_pickle=True).item()
+        logger.info(f"========================= PLANE {ipl} =========================")
+
+        # Run the plane
+
+
+
+def run_plane(database, settings):
+    """
+    Run the motion correction pipeline across all planes and channels
+
+    Converts input files to binary format, then runs the desired motion 
+    correction alogrithm on each plane sequentially
+
+    PARAMETERS
+        database: dict
+            Database dictionary specitying the "data_path", "nplanes", "nchannels",
+            and other input/output configurations
+        
+        settings: dict
+            Settings dictionary used by tyhe motion correction algorithms
+
+    OUTPUTS
+        outputs: dict
+            Outputs from the motion correction. See X for details
+    
+    """
+    settings = {**parameters.default_settings(), **settings}
+    settings["date_proc"] = datetime.now().astimezone()
+
+    # Set up torch device
+    device = _assign_torch_device(settings["torch_device"])
+
+    # Check for sufficient frame numbers
+    if database["nframes"] < 50:
+        raise ValueError("Number of frames should at least be 50")
+    elif database["nframes"] < 200:
+        logger.warning("WARNING: Number of frames < 200, unpredictable behavior")
+    
+    # Get the binary file paths
+    reg_file_chan1 = database["reg_file_chan1"]
+    two_ch = database["nchannels"] > 1
+    reg_file_chan2 = database.get("reg_file_chan2", None)
+
+    # Get the shape of the binary files
+    n_frames, Ly, Lx = database["nframes"], database["Ly"], database["Lx"]
+
+    null = contextlib.nullcontext()
+    # Load in the binary files
+    with io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=reg_file_chan1, n_frames=n_frames, write=False) as f_reg_chan1, \
+        io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=reg_file_chan2, n_frames=n_frames, write=False) if two_ch else null as f_reg_chan2:
+
+        # Run the motion correction pipeline
+        pass
 
 
 

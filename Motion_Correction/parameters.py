@@ -1,4 +1,5 @@
 from pathlib import Path
+from importlib.metadata import version
 
 import numpy as np
 
@@ -148,6 +149,14 @@ DATABASE = {
         "max": None,
         "default": False,
         "description": "Tiffs in 0, 1, 2, 2, 1, 0 ... order.",
+    },
+    "save_format": {
+        "gui_name": "Save format",
+        "type": str,
+        "min": None,
+        "max": None,
+        "default": "tif",
+        "description": "Specify output file type (tif, bin)",
     },
 }
 
@@ -503,3 +512,23 @@ SETTINGS = {
         },
     },
 }
+
+
+def default_dict(d):
+    dnew = {}
+    for k, v in d.items():
+        if "description" in v:
+            dnew[k] = v["default"] 
+        else:
+            dnew[k] = default_dict(v)
+    return dnew
+
+def default_db():
+    """ default options to run pipeline """
+    return default_dict(DATABASE)
+
+def default_settings():
+    """ default options to run pipeline """
+    settings = default_dict(SETTINGS)
+    settings["version"] = version("Motion_Correction")
+    return settings

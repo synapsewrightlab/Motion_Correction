@@ -201,11 +201,11 @@ def init_database(db0):
     for j in range(0, nfolders):
         db = copy.deepcopy(db0)
         db["save_path"] = os.path.join(db["save_path0"], db["save_folder"], f"plane{j}")
-        fast_disk = os.path.join(db["fast_disk"], "suite2p", f"plane{j}")
+        fast_disk = os.path.join(db["fast_disk"], "temp", f"plane{j}")
         db["fast_disk"] = fast_disk
         db["settings_path"] = os.path.join(db["save_path"], "settings.npy")
-        db["db_path"] = os.path.join(db["save_path"], "db.npy")
-        db["reg_file"] = os.path.join(fast_disk, "data.bin")
+        db["db_path"] = os.path.join(db["save_path"], "database.npy")
+        db["reg_file_chan1"] = os.path.join(fast_disk, "data_chan1.bin")
 
         if has_lines:
             db["lines"], db["dy"], db["dx"] = lines[j], dy[j], dx[j]
