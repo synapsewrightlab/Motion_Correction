@@ -150,13 +150,13 @@ DATABASE = {
         "default": False,
         "description": "Tiffs in 0, 1, 2, 2, 1, 0 ... order.",
     },
-    "save_format": {
-        "gui_name": "Save format",
-        "type": str,
+    "save_tif": {
+        "gui_name": "Save tif",
+        "type": bool,
         "min": None,
         "max": None,
-        "default": "tif",
-        "description": "Specify output file type (tif, bin)",
+        "default": True,
+        "description": "Specify whether to save tif file",
     },
 }
 
@@ -322,6 +322,14 @@ SETTINGS = {
             "max": None,
             "default": None,
             "description": "Upsampling factor for super-resolution meanImg computation. If 0 or None, no upsampling is performed.",
+        },
+        "two_step_registration": {
+            "gui_name": "Run registration twice",
+            "type": bool,
+            "min": None,
+            "max": None,
+            "default": False,
+            "description": "Whether or not to run registration twice (useful for low SNR data). Set keep_movie_raw to True if setting this parameter to True.",
         },
 
     },
