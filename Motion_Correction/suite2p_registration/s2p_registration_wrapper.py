@@ -9,6 +9,7 @@ import torch
 from .assign_reg_io import assign_reg_io
 from . import bidiphase as bidi
 from .compute_reference_image import compute_reference_image
+from .register import register_frames, compute_crop, shift_frames_and_write
 
 import logging
 logger = logging.getLogger(__name__)
@@ -88,7 +89,7 @@ def s2p_registration_wrapper(
         save_tif,
     )
     # Unpack i/o
-    f_align_in, f_align_out, f_alt_in, f_atl_out, tif_align_out, tif_alt_out = f_out
+    f_align_in, f_align_out, f_alt_in, f_alt_out, tif_align_out, tif_alt_out = f_out
 
     nchannels = 2 if f_alt_in is not None else 1
     logger.info(f"Registering {nchannels} channels")
@@ -138,5 +139,63 @@ def s2p_registration_wrapper(
             refImg_orig = refImg.copy()
 
         ######### Register frames to reference image ##############
+        outputs = register_frames(
+            f_align_in,
+            f_align_out=f_align_out,
+            refImg=refImg,
+            batch_size=settings["batch_size"],
+            bidiphase=bidiphase,
+            norm_frames=settings["norm_frames"],
+            smooth_sigma=settings["smooth_sigma"],
+            spatial_taper=settings["spatial_taper"],
+            block_size=settings["block_size"],
+            nonrigid=settings["nonrigid"],
+            maxregshift=settings["maxregshift"],
+            smooth_sigma_time=settings["smooth_sigma_time"],
+            snr_thresh=settings["snr_thresh"],
+            maxregshiftNR=settings["maxregshiftNR"],
+            subpixel=settings["subpixel"],
+            device=device,
+            tif_root=tif_align_out,
+            apply_shifts=True,
+            upsample_meanImg=settings.get("upsample_meanImg", False)
+        )
+
+        # Upack results
+        rmin, rmax, mean_img, offsets_all, blocks, mean_img_ups, counts_ups, meanImg_ups = outputs
+        yoff, xoff, corrXY, yoff1, xoff1, corrXY1, zest, cmax_all = offsets_all
+
+        # Compute value region and timepoints to exclude
+        badframes, yrange, xrange = compute_crop(
+            xoff=xoff,
+            yoff=yoff,
+            corrXY=corrXY,
+            th_badframes=settings["th_badframes"],
+            badframes=badframes0.copy(),
+            maxregshift=settings["maxregshift"],
+            Ly=Ly,
+            Lx=Lx,
+        )
+
+    
+    ########### Register Second Channel ################
+    if nchannels > 1:
+        mean_img_alt = shift_frames_and_write(
+            f_alt_in=f_alt_in,
+            f_alt_out=f_alt_out,
+            batch_size=settings["batch_size"],
+            yoff=yoff,
+            xoff=xoff,
+            yoff1=yoff1,
+            xoff1=xoff1,
+            blocks=blocks,
+            bidiphase=bidiphase,
+            tif_root=tif_alt_out,
+            device=device,
+        )
+    else:
+        mean_img_alt = None
+    
+    # Make and save summary video
 
 

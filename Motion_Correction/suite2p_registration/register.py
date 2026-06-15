@@ -1,10 +1,12 @@
 import os
 from tqdm import trange
 from pathlib import Path
+from warnings import warn
 
 import numpy as np
 import torch
 from scipy.ndimage import gaussian_filter
+from scipy.signal import medfilt
 
 from ..logger import TqdmToLogger
 
@@ -247,7 +249,8 @@ def shift_frames_and_write(
     blocks=None, 
     bidiphase=0, 
     device=torch.device("cuda"), 
-    tif_root=None):
+    tif_root=None
+):
     """
     Apply pre-computed registration shifts to an alternate channel and write results.
 
@@ -495,6 +498,89 @@ def shift_frames(
     frames_out = fr_torch.cpu().numpy()
 
     return frames_out
+
+def compute_crop(
+        xoff, 
+        yoff, 
+        corrXY, 
+        th_badframes, 
+        badframes, 
+        maxregshift,
+        Ly, 
+        Lx
+):
+    """
+    Determine how much to crop the FOV based on registration motion offsets.
+
+    Identifies badframes (frames with large outlier shifts, thresholded by
+    th_badframes) and excludes them when computing valid y and x ranges for
+    cropping the field of view.
+
+    PARAMETERS
+        xoff : np.ndarray
+            1-D array of length n_frames with x (column) rigid registration offsets.
+
+        yoff : np.ndarray
+            1-D array of length n_frames with y (row) rigid registration offsets.
+
+        corrXY : np.ndarray
+            1-D array of length n_frames with phase-correlation values for each frame.
+
+        th_badframes : float
+            Threshold multiplier for detecting bad frames based on the ratio of shift
+            deviation to correlation quality.
+
+        badframes : np.ndarray
+            1-D boolean array of length n_frames with pre-existing bad frame labels.
+
+        maxregshift : float
+            Maximum allowed registration shift as a fraction of the image dimension.
+            Frames exceeding 95% of this limit are marked as bad.
+
+        Ly : int
+            Height of a frame in pixels.
+
+        Lx : int
+            Width of a frame in pixels.
+
+    OUTPUT
+        badframes : np.ndarray
+            Updated 1-D boolean array of length n_frames indicating bad frames.
+
+        yrange : list of int
+            [ymin, ymax] valid row range after cropping for motion.
+
+        xrange : list of int
+            [xmin, xmax] valid column range after cropping for motion.
+    """
+    filter_window = min((len(yoff) // 2) * 2 - 1, 101)
+    dx = xoff - medfilt(xoff, filter_window)
+    dy = yoff - medfilt(yoff, filter_window)
+    # offset in x and y (normed by mean offset)
+    dxy = (dx**2 + dy**2)**.5
+    dxy = dxy / dxy.mean()
+    # phase-corr of each frame with reference (normed by median phase-corr)
+    cXY = corrXY / medfilt(corrXY, filter_window)
+    # exclude frames which have a large deviation and/or low correlation
+    px = dxy / np.maximum(0, cXY)
+    badframes = np.logical_or(px > th_badframes * 100, badframes)
+    badframes = np.logical_or(abs(xoff) > (maxregshift * Lx * 0.95), badframes)
+    badframes = np.logical_or(abs(yoff) > (maxregshift * Ly * 0.95), badframes)
+    if badframes.mean() < 0.5:
+        ymin = np.ceil(np.abs(yoff[np.logical_not(badframes)]).max())
+        xmin = np.ceil(np.abs(xoff[np.logical_not(badframes)]).max())
+    else:
+        warn(
+            "WARNING: >50% of frames have large movements, registration likely problematic"
+        )
+        ymin = np.ceil(np.abs(yoff).max())
+        xmin = np.ceil(np.abs(xoff).max())
+    ymax = Ly - ymin
+    xmax = Lx - xmin
+    yrange = [int(ymin), int(ymax)]
+    xrange = [int(xmin), int(xmax)]
+
+    return badframes, yrange, xrange
 
 
 def check_offsets(yoff, xoff, yoff1, xoff1, n_frames):
