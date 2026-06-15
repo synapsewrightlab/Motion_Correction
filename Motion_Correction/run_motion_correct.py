@@ -103,8 +103,10 @@ def run_plane(database, settings):
         logger.warning("WARNING: Number of frames < 200, unpredictable behavior")
     
     # Get the binary file paths
+    raw_file_chan1 = database["raw_file_chan1"]
     reg_file_chan1 = database["reg_file_chan1"]
     two_ch = database["nchannels"] > 1
+    raw_file_chan2 = database.get("raw_file_chan2", None)
     reg_file_chan2 = database.get("reg_file_chan2", None)
 
     # Get the shape of the binary files
@@ -112,8 +114,10 @@ def run_plane(database, settings):
 
     null = contextlib.nullcontext()
     # Load in the binary files
-    with io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=reg_file_chan1, n_frames=n_frames, write=False) as f_reg_chan1, \
-        io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=reg_file_chan2, n_frames=n_frames, write=False) if two_ch else null as f_reg_chan2:
+    with io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=raw_file_chan1, n_frames=n_frames, write=False) as f_raw_chan1, \
+        io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=reg_file_chan1, n_frames=n_frames, write=True) as f_reg_chan1, \
+        io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=raw_file_chan2, n_frames=n_frames, write=False) if two_ch else null as f_raw_chan2, \
+        io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=reg_file_chan2, n_frames=n_frames, write=True) if two_ch else null as f_reg_chan2:
 
         # Run the motion correction pipeline
         pass

@@ -1,7 +1,9 @@
 import os
 
 def assign_reg_io(
+    f_raw_chan1,
     f_reg_chan1,
+    f_raw_chan2=None,
     f_reg_chan2=None,
     align_by_chan2=False,
     save_path=None,
@@ -14,8 +16,14 @@ def assign_reg_io(
     Sets up save directories, as well as for tiff files
 
     PARAMETERS
-        f_reg : np.ndarray or BinaryFile
+        f_raw_chan1 : np.ndarray or BinaryFile
+            Raw functional channel frames.
+
+        f_reg_chan1 : np.ndarray or BinaryFile
             Registered functional channel frames.
+
+        f_raw_chan2 : np.ndarray or BinaryFile
+            Raw second channel frames.
 
         f_reg_chan2 : np.ndarray or BinaryFile or None
             Registered second channel frames.
@@ -49,38 +57,17 @@ def assign_reg_io(
             Tiff output directory for the alternate channel. 
     
     """
-    # Set up save paths for chan1 and chan2
-    if save_path:
-        reg_chan1_save = os.path.join(save_path, "Ch1", "aligned_chan1.bin")
-        os.makedirs(reg_chan1_save, exist_ok=True)
 
-        if f_reg_chan2 is not None:
-            reg_chan2_save = os.path.join(save_path, "Ch2", "aligned_chan2.bin")
-            os.makedirs(reg_chan2_save, exist_ok=True)
-        else:
-            reg_chan2_save = None
-
+    if f_raw_chan2 is None or not align_by_chan2:
+        f_align_in = f_raw_chan1
+        f_alt_in = f_raw_chan2
+        f_align_out = f_reg_chan1
+        f_alt_out = f_reg_chan2
     else:
-        save_path = os.path.dirname(f_reg_chan1)
-        reg_chan1_save = os.path.join(save_path, "Ch1", "aligned_chan1.bin")
-        os.makedirs(reg_chan1_save, exist_ok=True)
-
-        if f_reg_chan2 is not None:
-            reg_chan2_save = os.path.join(save_path, "Ch2", "aligned_chan2.bin")
-            os.makedirs(reg_chan2_save, exist_ok=True)
-        else:
-            reg_chan2_save = None
-
-    if f_reg_chan2 is None or not align_by_chan2:
-        f_align_in = f_reg_chan1
-        f_alt_in = f_reg_chan2
-        f_align_out = reg_chan1_save
-        f_alt_out = reg_chan2_save
-    else:
-        f_align_in = f_reg_chan2
-        f_alt_in = f_reg_chan1
-        f_align_out = reg_chan2_save
-        f_alt_out = reg_chan1_save
+        f_align_in = f_raw_chan2
+        f_alt_in = f_raw_chan1
+        f_align_out = f_reg_chan2
+        f_alt_out = f_reg_chan1
 
     if f_alt_in is not None:
         if f_align_in.shape[0] != f_alt_in.shape[0]:
@@ -97,7 +84,7 @@ def assign_reg_io(
         else:
             tif_alt_out = tif_chan1_save
 
-        if reg_chan2_save is not None:
+        if f_reg_chan2 is not None:
             tif_chan2_save = os.path.join(save_path, "Ch2", "tif_files")
             os.makedirs(tif_chan2_save, exist_ok=True)  
         else:

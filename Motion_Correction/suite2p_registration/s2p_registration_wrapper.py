@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 from .. import parameters, logger
 
 def s2p_registration_wrapper(
+    f_raw_chan1,
     f_reg_chan1,
+    f_raw_chan2,
     f_reg_chan2=None,
     refImg=None,
     align_by_chan2=False,
@@ -34,8 +36,14 @@ def s2p_registration_wrapper(
     to alternate channel if present, and returns all registration outputs as dictionary
 
     PARAMETERS
+        f_raw_chan1: np.ndarray or BinaryFile
+            Raw functional channel frames of shape (n_frmaes, Ly, Lx)
+
         f_reg_chan1: np.ndarray or BinaryFile
             Registered functional channel frames of shape (n_frmaes, Ly, Lx)
+        
+        f_raw_chan2: np.ndarray or BinaryFile
+            Raw second channel
         
         f_reg_chan2: np.ndarray or BinaryFile
             Registered second channel
@@ -71,7 +79,9 @@ def s2p_registration_wrapper(
     """
     # Get the input outputs for registration
     f_out = assign_reg_io(
+        f_raw_chan1,
         f_reg_chan1,
+        f_raw_chan2,
         f_reg_chan2,
         align_by_chan2,
         save_path,

@@ -37,10 +37,10 @@ def prep_image_files(databases, settings):
     # Set up the binary files to write to
     with contextlib.ExitStack() as stack:
         # Set up the file names
-        fnames = [db["reg_file_chan1"] for db in databases]
+        fnames = [db["raw_file_chan1"] for db in databases]
         files = [stack.enter_context(open(f, "wb")) for f in fnames]
         if databases[0]["nchannels"] > 1:
-            fnames_ch2 = [db["reg_file_chan2"] for db in databases]
+            fnames_ch2 = [db["raw_file_chan2"] for db in databases]
             files_ch2 = [stack.enter_context(open(f2, "wb")) for f2 in fnames_ch2]
         else:
             files_ch2 = None

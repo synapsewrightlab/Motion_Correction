@@ -172,15 +172,15 @@ class BinaryFile:
                 f.write(curr_frame, contiguous=True)
         logger.info('Tiff has been saved to {}'.format(fname))
 
-        @contextmanager
-        def temporary_pointer(file):
-            """
-            Context manager that aves and restores the file's pointer positions
-            
-            """
-            orig_pointer = file.tell()
-            yield file
-            file.seek(orig_pointer)
+@contextmanager
+def temporary_pointer(file):
+    """
+    Context manager that aves and restores the file's pointer positions
+    
+    """
+    orig_pointer = file.tell()
+    yield file
+    file.seek(orig_pointer)
 
 class BinaryFileCombined:
 
