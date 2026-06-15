@@ -205,14 +205,14 @@ def init_database(db0):
         db["fast_disk"] = fast_disk
         db["settings_path"] = os.path.join(db["save_path"], "settings.npy")
         db["db_path"] = os.path.join(db["save_path"], "database.npy")
-        db["reg_file_chan1"] = os.path.join(fast_disk, "data_chan1.bin")
+        db["reg_file_chan1"] = os.path.join(fast_disk, "raw_chan1.bin")
 
         if has_lines:
             db["lines"], db["dy"], db["dx"] = lines[j], dy[j], dx[j]
             db["iroi"] = iroi[j]
         db["iplane"] = iplane[j]
         if nchannels > 1:
-            db["reg_file_chan2"] = os.path.join(fast_disk, "data_chan2.bin")
+            db["reg_file_chan2"] = os.path.join(fast_disk, "raw_chan2.bin")
         
         os.makedirs(db["fast_disk"], exist_ok=True)
         os.makedirs(db["save_path"], exist_ok=True)
