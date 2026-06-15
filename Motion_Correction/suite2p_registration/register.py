@@ -221,7 +221,7 @@ def register_frames(
 
             # Save aligned image as tif if specified
             if tif_root:
-                bname = Path(f_align_out).stem
+                bname = Path(f_align_out.filename).stem
                 fname = os.path.join(tif_root, f"{bname}_{n : 0.5d}.tif")
                 save_tiff(mov=frames, fname=fname)
     
@@ -331,7 +331,7 @@ def shift_frames_and_write(
 
         # save aligned frames to tiffs
         if tif_root:
-            bname = Path(f_alt_out).stem
+            bname = Path(f_alt_out.filename).stem
             fname = os.path.join(tif_root, f"{bname}_{n : 0.5d}.tif")
             save_tiff(mov=frames, fname=fname)
 
