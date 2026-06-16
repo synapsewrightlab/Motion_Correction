@@ -6,10 +6,12 @@ from tqdm import trange
 import numpy as np
 import torch
 
+from . import s2p_reg_utils as utils
 from .assign_reg_io import assign_reg_io
 from . import bidiphase as bidi
 from .compute_reference_image import compute_reference_image
 from .register import register_frames, compute_crop, shift_frames_and_write
+from .make_summary import make_summary_video
 
 import logging
 logger = logging.getLogger(__name__)
@@ -195,7 +197,139 @@ def s2p_registration_wrapper(
         )
     else:
         mean_img_alt = None
+
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+    
+    if device.type == "mps":
+        torch.mps.empty_cache()
+
+    meanImg = mean_img if nchannels == 1 or not align_by_chan2 else mean_img_alt
+    if nchannels == 2:
+        meanImg_chan2 = mean_img_alt if not align_by_chan2 else mean_img
+    else:
+        meanImg_chan2 = None
     
     # Make and save summary video
+    make_summary_video(f_align_out, downsample_frames=settings["downsampled_frames"])
+    if nchannels > 1:
+        make_summary_video(f_alt_out, downsample_frames=settings["downsample_frames"])
+
+    # Package results for output
+    reg_outputs = registration_outputs_to_dict(
+        refImg_orig,
+        rmin, 
+        rmax,
+        meanImg,
+        (yoff, xoff, corrXY),
+        (yoff1, xoff1, corrXY1),
+        meanImg_chan2,
+        badframes,
+        badframes0,
+        yrange,
+        xrange,
+        bidiphase,
+    )
+
+    # add enhanced mean image
+    meanImgE = utils.highpass_mean_image(meanImg.astype("float32"), aspect=aspect)
+    reg_outputs["meanImgE"] = meanImgE
+
+    # add upsampled mean image if computed
+    if mean_img_ups is not None and counts_ups is not None:
+        reg_outputs["meanImg_upsample"] = meanImg_ups
+        reg_outputs["mean_img_ups"] = mean_img_ups.cpu().numpy()
+        reg_outputs["counts_ups"] = counts_ups.cpu().numpy()
+
+    return reg_outputs
+
+
+def registration_outputs_to_dict(
+    refImg,
+    rmin, 
+    rmax,
+    meanImg,
+    rigid_offsets,
+    nonrigid_offsets,
+    meanImg_chan2,
+    badframes,
+    badframes0,
+    yrange,
+    xrange, 
+    bidiphase,
+):
+    """
+    Pack registration results into dictionary
+
+    PARAMETERS
+        refImg : np.ndarray
+            Reference image of shape (Ly, Lx).
+
+        rmin : np.int16
+            Lower intensity clip bound.
+
+        rmax : np.int16
+            Upper intensity clip bound.
+
+        meanImg : np.ndarray
+            Mean registered image of shape (Ly, Lx).
+
+        rigid_offsets : tuple
+            Tuple of (yoff, xoff, corrXY) rigid registration offsets.
+
+        nonrigid_offsets : tuple
+            Tuple of (yoff1, xoff1, corrXY1) nonrigid offsets, elements may be None.
+
+        meanImg_chan2 : np.ndarray or None
+            Mean image of the second channel, shape (Ly, Lx).
+
+        badframes : np.ndarray
+            1-D boolean array of detected bad frames.
+
+        badframes0 : np.ndarray
+            1-D boolean array of initial bad frames before registration.
+
+        yrange : list of int
+            [ymin, ymax] valid row range.
+
+        xrange : list of int
+            [xmin, xmax] valid column range.
+
+        bidiphase : int
+            Bidirectional phase offset in pixels.
+
+
+    OUTPUT
+        reg_outputs : dict
+            Dictionary with keys "refImg", "rmin", "rmax", "yoff", "xoff",
+            "corrXY", "meanImg", "badframes", "badframes0", "yrange", "xrange",
+            "bidiphase", and optionally "yoff1", "xoff1", "corrXY1",
+            "meanImg_chan2", "zpos_registration", "cmax_registration".
+    
+    """
+    # Initialize output
+    reg_outputs = {}
+
+    # Assign reference image and normalizers
+    reg_outputs["refImg"] = refImg
+    reg_outputs["rmin"], reg_outputs["rmax"] = rmin, rmax
+
+    # assign offsets
+    reg_outputs["yoff"], reg_outputs["xoff"], reg_outputs["corrXY"] = rigid_offsets
+    if nonrigid_offsets[0] is not None:
+        reg_outputs["yoff1"], reg_outputs["xoff1"], reg_outputs["corrXY1"] = nonrigid_offsets
+    
+    # Assign mean images
+    reg_outputs["meanImg"] = meanImg
+    if meanImg_chan2 is not None:
+        reg_outputs["meanImg_chan2"] = meanImg_chan2
+    
+    # Assign crop computation and bad frames
+    reg_outputs["badframes"], reg_outputs["badframes0"] = badframes, badframes0
+    reg_outputs["yrange"], reg_outputs["xrange"] = yrange, xrange
+
+    reg_outputs["bidiphase"] = bidiphase
+
+    return reg_outputs
 
 

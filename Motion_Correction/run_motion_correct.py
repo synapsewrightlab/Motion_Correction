@@ -73,7 +73,14 @@ def run_motion_correction(database={}, settings={}):
         logger.info(f"========================= PLANE {ipl} =========================")
 
         # Run the plane
+        reg_outputs = run_plane(db, ops)
+        plane_time = time.time() - start_time
+        logger.info("----------- Total %0.2f sec." % plane_time)
 
+    run_time = time.time() - start_time
+    logger.info("Registration completed: Total %0.2f sec run time" % run_time)
+
+    return db_paths
 
 
 def run_plane(database, settings):
@@ -126,9 +133,24 @@ def run_plane(database, settings):
         io.binary.BinaryFile(Ly=Ly, Lx=Lx, filename=reg_file_chan2, n_frames=n_frames, write=True) if two_ch else null as f_reg_chan2:
 
         # Run the motion correction pipeline
-        pass
+        reg_outputs = pipeline(
+            save_path=database["save_path"],
+            f_reg_chan1=f_reg_chan1,
+            f_raw_chan1=f_raw_chan1,
+            f_reg_chan2=f_reg_chan2,
+            f_raw_chan2=f_raw_chan2,
+            algorithm=settings["algorithm"], 
+            settings=settings,
+            device=device,
+        )
 
+    # Delete the raw binary files
+    logger.info("Deleting raw binary files")
+    for key in ["raw_file_chan1", "raw_file_chan2"]:
+        if key in database:
+            os.remove(database[key])
 
+    return reg_outputs
 
 
 def logger_setup(save_path=None):

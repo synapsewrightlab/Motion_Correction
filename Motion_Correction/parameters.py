@@ -170,7 +170,7 @@ SETTINGS = {
         "default": "cpu",
         "description": "Torch device using GPU ('cuda') or CPU ('cpu').",
     },
-    "select_algorithm": {
+    "algorithm": {
         "gui_name": "Select algorithm",
         "type": str,
         "min": None,
