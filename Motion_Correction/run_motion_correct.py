@@ -41,12 +41,18 @@ def run_motion_correction(database={}, settings={}):
     logger.info(version("Motion_Correction"))
     logger.info(f"data_path: {database["data_path"]}")
 
-    # Set up the databases for each plane
+    # Get file list 
     database["input_format"] = database.get("input_format", "tif")
-    databases = io.io_utils.get_file_list(database)
+    fs, first_files = io.io_utils.get_file_list(database)
+
+    database["file_list"] = fs 
+    database["first_files"] = first_files
+
+    # Setup databases for each plane
+    databases = io.io_utils.init_database(database)
 
     db_paths = [db["db_path"] for db in databases]
-    settings_path = [db["settings_path"] for db in databases]
+    settings_paths = [db["settings_path"] for db in databases]
     save_folder = os.path.join(database["save_path0"], database["save_folder"])
     np.save(os.path.join(save_folder, "db.npy"), database)
     np.save(os.path.join(save_folder, "settings.npy"), settings)
@@ -60,7 +66,7 @@ def run_motion_correction(database={}, settings={}):
                 )
     
     # Prepare the run each plane
-    for ipl, (settings_path, db_path) in enumerate(zip(settings_path, db_paths)):
+    for ipl, (settings_path, db_path) in enumerate(zip(settings_paths, db_paths)):
         ops = np.load(settings_path, allow_pickle=True).item()
         ops = {**ops, **settings}
         db = np.load(db_path, allow_pickle=True).item()

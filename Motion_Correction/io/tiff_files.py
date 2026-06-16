@@ -293,8 +293,8 @@ def tiff_to_binary(databases, settings, reg_file, reg_file_chan2):
         db["meanImg_chan1"] /= db["nframes"]
         if nchannels > 1:
             db["meanImg_chan2"] /= db["nframes"]
-        np.save(db["save_path0"], db)
-        np.save(db["save_path0"], settings)
+        np.save(db["db_path"], db)
+        np.save(db["settings_path"], settings)
     
     # close all binary files
     for jk in range(0, nplanes * nrois):
