@@ -176,7 +176,7 @@ SETTINGS = {
         "min": None,
         "max": None,
         "default": "Suite2p",
-        "description": "Use Suite2p or PatwarpWarp for motion correction",
+        "description": "Can be ['Suite2p', 'PatchWarp'].",
     },
     "downsampled_frames": {
         "gui_name": "Downsampled frame num.",
@@ -540,3 +540,32 @@ def default_settings():
     settings = default_dict(SETTINGS)
     settings["version"] = version("Motion_Correction")
     return settings
+
+
+def add_descriptions(d, dstr="settings", k0=None):
+    all_params = []
+    kstr = "" if k0 is None else k0
+    
+    for k, v in d.items():
+        if "description" in v:
+            pname = f'{dstr}{kstr}["{k}"]'
+            if v["min"] is not None:
+                s = f"""
+                        {pname} ; 
+                        Default value: {str(v["default"])} ;   
+                        Min, max: ({str(v['min'])}, {str(v['max'])}) ; 
+                        Type: {v['type'].__name__}
+                    """
+            else:
+                s = f"""
+                        {pname} ; 
+                        Default value: {str(v["default"])} ;   
+                        Type: {v['type'].__name__}
+                    """
+            v["description"] += s
+            all_params.append([pname, v["description"]])
+        else:
+            all_params0 = add_descriptions(v, k0=kstr + f'["{k}"]')
+            all_params.append(k)
+            all_params.extend(all_params0)
+    return all_params
