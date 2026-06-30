@@ -4,7 +4,8 @@ import torch
 import numpy as np
 import logging
 
-from . import suite2p_registration_wrapper, parameters
+from . import parameters
+from .suite2p_registration import s2p_registration_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def pipeline(
 
     if algorithm == "Suite2p":
         align_by_chan2 = settings["suite2p_settings"]["align_by_chan2"]
-        reg_outputs = suite2p_registration_wrapper(
+        reg_outputs = s2p_registration_wrapper(
             f_raw_chan1=f_raw_chan1,
             f_reg_chan1=f_reg_chan1,
             f_raw_chan2=f_raw_chan2,
