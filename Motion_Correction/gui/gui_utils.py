@@ -9,6 +9,16 @@ import numpy as np
 import torch
 
 from .. import logger, run_motion_correct
+from . import styles
+
+DB_KEYS = [  "input_format", "look_one_level_down",
+             "keep_movie_raw", "nplanes", "nchannels", "swap_order",
+             "functional_chan", "ignore_flyback", "save_folder",
+             "batch_size",
+             "h5py_key", "nwb_series", "force_sktiff"
+        ]
+FILE_KEYS = ["data_path", "save_path0", "fast_disk"]
+COMBO_KEYS = ["input_format", "algorithm"]
 
 class MyLog(QtCore.QObject):
     """
@@ -176,3 +186,41 @@ def logger_setup(name):
     logger.setLevel(logging.DEBUG)
 
     return logger
+
+def list_to_str(l):
+    return ", ".join(str(l0) for l0 in l)
+
+
+def create_input(key, SETTINGS, settings_gui, width=160):
+    """Function to help create inputs"""
+
+    qlabel = QtWidgets.QLabel(SETTINGS[key]["gui_name"])
+    qlabel.setToolTip(SETTINGS[key]["description"])
+    qlabel.setFixedWidth(width)
+    qlabel.setAlignment(QtCore.Qt.AlignRight)
+    qlabel.setStyleSheet("QLabel {font-family: Arial; font-weight:bold; color: white}")
+
+    if SETTINGS[key]["type"] == bool:
+        settings_gui[key] = QtWidgets.QCheckBox()
+        settings_gui[key].setChecked(SETTINGS[key]["default"])
+
+    else:
+        settings_gui[key] = QtWidgets.QLineEdit()
+        settings_gui[key].setFixedWidth(100)
+        
+        if SETTINGS[key]["default"] is not None:
+            if key in COMBO_KEYS:
+                settings_gui[key] = QtWidgets.QComboBox()
+                strs = SETTINGS[key]["description"].split("[")[1].split("]")[0].split(", ")
+                strs = [s[1:-1] for s in strs]
+                settings_gui[key].addItems(strs)
+                settings_gui[key].setFixedWidth(100)
+                settings_gui[key].setStyleSheet(styles.comboBoxStyle())
+            elif SETTINGS[key]["type"] == list or SETTINGS[key]["type"] == tuple:
+                settings_gui[key].setText(list_to_str(SETTINGS[key]["default"]))
+            else:
+                settings_gui[key].setText(str(SETTINGS[key]["default"]))
+    
+    settings_gui[key].setToolTip(SETTINGS[key]["description"])
+
+    return qlabel
