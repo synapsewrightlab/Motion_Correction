@@ -39,7 +39,7 @@ def run_motion_correction(database={}, settings={}):
     save_path = database["save_path0"]
 
     logger.info(version("Motion_Correction"))
-    logger.info(f"data_path: {database["data_path"]}")
+    logger.info(f"data_path: {database['data_path']}")
 
     # Get file list 
     database["input_format"] = database.get("input_format", "tif")
