@@ -5,23 +5,27 @@ channels:
 dependencies:
   - python >= 3.11,<3.12
   - tifffile
-  - torch >= 1.13.1
+  - pytorch >= 1.13.1
   - torchvision
   - numpy >= 1.24.3
   - numba >= 0.57.0
   - scipy >= 1.9.0
   - scikit-learn
-  - scanimage-tiff-reader >= 1.4.1
   - qtpy
   - superqt
   - pyqt6
-  - pyqt6.sip
+  - pyqt6-sip
   - pyqtgraph
   - paramiko
+  - pip
   - nd2
-  - sbxreader
   - h5py
-  - opencv-python-headless
   - xmltodict
-  - dcimg
   - natsort
+  - tqdm
+  - pip:
+    - dcimg
+    - opencv-python-headless
+    - sbxreader
+    - scanimage-tiff-reader >= 1.4.1
+    - -e.
