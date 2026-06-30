@@ -15,4 +15,9 @@ setup(
     author="William (Jake) Wright",
     license="MIT",
     packages=find_packages(),
+    entry_points={
+        "console_scripts": [
+            "Motion_Correct = Motion_Correction.gui.guiMC:main"
+        ]
+    }
 )
