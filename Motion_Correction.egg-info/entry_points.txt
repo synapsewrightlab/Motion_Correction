@@ -1,0 +1,2 @@
+[console_scripts]
+Motion_Correct = Motion_Correction.gui.guiMC:main

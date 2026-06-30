@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: Motion_Correction
+Version: 0.0.1
+Summary: Code for motion correction
+Home-page: https://github.com/synapsewrightlab/Motion_Correction
+Author: William (Jake) Wright
+License: MIT
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: author
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license
+Dynamic: license-file
+Dynamic: summary
+
+# Motion_Correction
+This repository contains code to perform motion correction for two-photon image data. This code is integrated into a GUI to allow for easy batch analysis, and provides options to use two different algorithms to perform motion correction; 1) Suite2p alogrithm, 2) Patchwarp. Both algorithms provide options to perform rigid and non-rigid motion correction. The scripts in this repository borrows heavily from Suite2p.
