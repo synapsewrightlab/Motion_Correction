@@ -3,7 +3,6 @@ from importlib.metadata import version
 
 import numpy as np
 
-
 # Default parameters for each image database
 DATABASE = {
     "data_path": {
@@ -16,11 +15,11 @@ DATABASE = {
     },
     "one_down": {
         "gui_name": "Look one level down",
-        "type": bool, 
+        "type": bool,
         "min": None,
         "max": None,
         "default": False,
-        "description": "Whether to look in all subfolders when looking for image files"
+        "description": "Whether to look in all subfolders when looking for image files",
     },
     "input_format": {
         "gui_name": "Input format",
@@ -38,7 +37,7 @@ DATABASE = {
         "default": 1,
         "description": "Each tiff / file has this many planes in sequence.",
     },
-     "nrois": {
+    "nrois": {
         "gui_name": "Number of ROIs",
         "type": int,
         "min": 1,
@@ -55,7 +54,7 @@ DATABASE = {
         "description": "Specify one- or two- channel recording.",
     },
     "swap_order": {
-        "gui_name": "Swap the order of channels and planes for multiplexed recordings.",
+        "gui_name": "Swap Order",
         "type": bool,
         "min": None,
         "max": None,
@@ -150,13 +149,13 @@ DATABASE = {
         "default": False,
         "description": "Tiffs in 0, 1, 2, 2, 1, 0 ... order.",
     },
-    "save_tif": {
-        "gui_name": "Save tif",
-        "type": bool,
+    "batch_size": {
+        "gui_name": "Batch size",
+        "type": int,
         "min": None,
         "max": None,
-        "default": True,
-        "description": "Specify whether to save tif file",
+        "default": 500,
+        "description": "Number of frames per batch when writing binary files.",
     },
 }
 
@@ -178,15 +177,23 @@ SETTINGS = {
         "default": "Suite2p",
         "description": "Can be ['Suite2p', 'PatchWarp'].",
     },
+    "save_tif": {
+        "gui_name": "Save tif",
+        "type": bool,
+        "min": None,
+        "max": None,
+        "default": True,
+        "description": "Specify whether to save tif file",
+    },
     "downsampled_frames": {
         "gui_name": "Downsampled frame num.",
         "type": int,
         "min": 1,
         "max": 1000,
         "default": 50,
-        "description": "Number of frames to downsample for summary video"
+        "description": "Number of frames to downsample for summary video",
     },
-    "suite2p_settings": {
+    "Suite2p_settings": {
         "align_by_chan2": {
             "gui_name": "Align by chan2 (non-func)",
             "type": bool,
@@ -206,8 +213,8 @@ SETTINGS = {
         "maxregshift": {
             "gui_name": "Max registration shift",
             "type": float,
-            "min": 0.,
-            "max": 1.,
+            "min": 0.0,
+            "max": 1.0,
             "default": 0.1,
             "description": "Max allowed registration shift, as a fraction of frame max(width and height).",
         },
@@ -224,7 +231,7 @@ SETTINGS = {
             "type": float,
             "min": 0,
             "max": np.inf,
-            "default": 0.,
+            "default": 0.0,
             "description": "Bidirectional phase offset from line scanning (set by user). Applied to all frames in recording.",
         },
         "batch_size": {
@@ -262,7 +269,7 @@ SETTINGS = {
         "smooth_sigma_time": {
             "gui_name": "Time smoothing",
             "type": float,
-            "min": 0.,
+            "min": 0.0,
             "max": np.inf,
             "default": 0,
             "description": "Gaussian smoothing in time to compute registration shifts (may be necessary with low SNR).",
@@ -278,7 +285,7 @@ SETTINGS = {
         "spatial_taper": {
             "gui_name": "Edge tapering width",
             "type": float,
-            "min": 0.,
+            "min": 0.0,
             "max": np.inf,
             "default": 3.45,
             "description": "Edge tapering width in pixels, may want larger for 1P recordings.",
@@ -286,9 +293,9 @@ SETTINGS = {
         "th_badframes": {
             "gui_name": "Bad frame threshold",
             "type": float,
-            "min": 0.,
+            "min": 0.0,
             "max": np.inf,
-            "default": 1.,
+            "default": 1.0,
             "description": "Determines which frames to exclude when determining cropping - set it smaller to exclude more frames, particularly if crop seems small.",
         },
         "norm_frames": {
@@ -302,7 +309,7 @@ SETTINGS = {
         "snr_thresh": {
             "gui_name": "Nonrigid SNR threshold",
             "type": float,
-            "min": 1.,
+            "min": 1.0,
             "max": np.inf,
             "default": 1.2,
             "description": "If any nonrigid block is below this threshold, it gets smoothed until above this threshold. 1.0 results in no smoothing.",
@@ -331,7 +338,6 @@ SETTINGS = {
             "default": False,
             "description": "Whether or not to run registration twice (useful for low SNR data). Set keep_movie_raw to True if setting this parameter to True.",
         },
-
     },
     "Patchwarp_settings": {
         "align_by_chan2": {
@@ -348,7 +354,7 @@ SETTINGS = {
             "min": None,
             "max": None,
             "default": True,
-            "description": "Whether to perform rigid motion correction"
+            "description": "Whether to perform rigid motion correction",
         },
         "do_nonrigid": {
             "gui_name": "Peform nonridig motion correction",
@@ -356,7 +362,7 @@ SETTINGS = {
             "min": None,
             "max": None,
             "default": True,
-            "description": "Whether to perform nonrigid motion correction"
+            "description": "Whether to perform nonrigid motion correction",
         },
         "rigid_norm_method": {
             "gui_name": "Rigid norm. method",
@@ -364,7 +370,7 @@ SETTINGS = {
             "min": None,
             "max": None,
             "default": "rank",
-            "description": "Rigid normalization method. Try 'local' when 'rigid' does not work well",
+            "description": "Can be ['rank', 'local']",
         },
         "rigid_norm_radius": {
             "gui_name": "Rigid norm. radius",
@@ -420,7 +426,7 @@ SETTINGS = {
             "min": None,
             "max": None,
             "default": "affine",
-            "description": "Type of transform for nonrigid correction (affine, translation, euclidean, homography)",
+            "description": "Can be ['affine', 'translation', 'homography']",
         },
         "affine_norm_radius": {
             "gui_name": "Affine norm. radius",
@@ -526,17 +532,19 @@ def default_dict(d):
     dnew = {}
     for k, v in d.items():
         if "description" in v:
-            dnew[k] = v["default"] 
+            dnew[k] = v["default"]
         else:
             dnew[k] = default_dict(v)
     return dnew
 
+
 def default_db():
-    """ default options to run pipeline """
+    """default options to run pipeline"""
     return default_dict(DATABASE)
 
+
 def default_settings():
-    """ default options to run pipeline """
+    """default options to run pipeline"""
     settings = default_dict(SETTINGS)
     settings["version"] = version("Motion_Correction")
     return settings
@@ -545,7 +553,7 @@ def default_settings():
 def add_descriptions(d, dstr="settings", k0=None):
     all_params = []
     kstr = "" if k0 is None else k0
-    
+
     for k, v in d.items():
         if "description" in v:
             pname = f'{dstr}{kstr}["{k}"]'
