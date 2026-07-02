@@ -1,6 +1,7 @@
 from qtpy.QtGui import QAction
 
 from . import styles
+from . import io
 
 def fileMenu(parent):
     """Main Menu bar for the GUI"""
@@ -9,12 +10,12 @@ def fileMenu(parent):
     # Load database
     parent.load_db = QAction("&Open DB File", parent)
     parent.load_db.setShortcut("Ctrl+D")
-    parent.load_db.triggered.connect(lambda: print("Add function"))
+    parent.load_db.triggered.connect(lambda: io.load_db(parent, filename=None))
 
     # Load settings
     parent.load_settings = QAction("&Open Settings File", parent)
     parent.load_settings.setShortcut("Ctrl+O")
-    parent.load_settings.triggered.connect(lambda: print("Add function"))
+    parent.load_settings.triggered.connect(lambda: io.load_settings(parent, filename=None))
 
     # Revert to default settings
     parent.default_settings = QAction("&Revert to default settings")
@@ -24,7 +25,12 @@ def fileMenu(parent):
     # Save settings
     parent.save_settings = QAction("&Save Settings File", parent)
     parent.save_settings.setShortcut("Ctrl+S")
-    parent.save_settings.triggered.connect(lambda: print("Add function"))
+    parent.save_settings.triggered.connect(lambda: io.save_settings(parent))
+
+    # Save database
+    parent.save_database = QAction("&Save Database File", parent)
+    parent.save_database.setShortcut("Ctrl+B")
+    parent.save_database.triggered.connect(lambda: io.save_db(parent))
 
     # Exit GUI
     parent.exit_gui = QAction("&Exit", parent)
@@ -40,6 +46,7 @@ def fileMenu(parent):
     file_menu.addAction(parent.load_settings)
     file_menu.addAction(parent.default_settings)
     file_menu.addAction(parent.save_settings)
+    file_menu.addAction(parent.save_database)
     file_menu.addAction(parent.exit_gui)
 
 
