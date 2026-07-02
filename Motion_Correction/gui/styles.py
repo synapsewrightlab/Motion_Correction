@@ -1,6 +1,7 @@
 from qtpy import QtGui
 from qtpy.QtGui import QFont
 
+
 def menuStyle():
     menu_style = """
     QMenuBar {
@@ -107,6 +108,170 @@ def comboBoxStyle():
     return combo_style
 
 
+def checkBoxStyle():
+    check_style = """
+    QCheckBox {
+        color: white;
+    }
+    QCheckBox::indicator {
+        background-color: rgb(50,50,50);
+    }
+    QCheckBox::indicator:checked {
+        background-color: rgb(120,120,120)
+    }
+
+
+"""
+    return check_style
+
+
+def pushButtonStyle():
+    button_style = """
+        QPushButton {
+            background-color: rgb(50,50,50);
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+            border-style: solid;
+            border-color: rgb(100,100,100);
+            border-width: 1px;
+            font-family: Arial;
+            padding: 0px 6px;
+        }
+        QPushButton:pressed {
+            background-color: rgb(100,100,100);
+            color: white;
+            font-weight: bold;
+            font-family: Arial;
+        }
+        QPushButton:disabled {
+            background-color: rgb(30,30,30);
+            color: rgb(100,100,100);
+        }
+
+
+"""
+
+    return button_style
+
+
+def textEditStyle():
+    text_style = """
+        QPlainTextEdit {
+            background-color: rgb(30,30,30);
+            color: white;
+            font-family: Arial;
+            border: 2px solid rgb(100,100,100);
+            border-radius: 4px;
+            selection-background-color: rgb(212,212,212);
+            selection-color: black;
+    }
+
+"""
+    return text_style
+
+
+def lineEditStyle():
+    line_style = """
+        QLineEdit {
+            background-color: rgb(30,30,30);
+            color: white;
+            font-family: Arial;
+            border: 1px solid rgb(70,70,70);
+            selection-color: black;
+            selection-background-color: rgb(212,212,212);
+        }
+        QLineEdit:focus {
+            border: 2px solid rgb(120,120,120);
+            background-color: rgb(50,50,50);
+        }
+        
+
+"""
+
+    return line_style
+
+
+def scrollStyle():
+    scroll_style = """
+        QScrollArea {
+            border: none;
+        }
+        QScrollBar:vertical {
+            background-color: rgb(30,30,30);
+        }
+        QScrollBar:vertical {
+            background: transparent;
+        }
+        QScrollBar::handle:vertical {
+            background-color: rgb(70,70,70);
+        }
+        QScrollBar::add-page:vertical {
+            background: rgb(120,120,120);
+        }
+        QScrollBar::sub-page:vertical {
+            background: rgb(120,120,120);
+        }
+        QScrollBar::sub-line:vertical {
+            background-color: rgb(100,100,100);
+            height: 20px;
+            subcontrol-position: top;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::add-line:vertical {
+            background-color: rgb(100,100,100);
+            height: 20px;
+            subcontrol-position: bottom;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::up-arrow:vertical {
+            width: 8px;
+            height: 8px;
+        }
+        QScrollBar::down-arrow:vertical {
+            width: 8px;
+            height: 8px;
+        }
+        }
+
+"""
+    return scroll_style
+
+
+def collButtonStyle():
+    button_style = """
+        QPushButton {
+            background-color: rgb(50,50,50);
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+            border-style: solid;
+            border-color: rgb(100,100,100);
+            border-width: 1px;
+            font-family: Arial;
+            font-size: 10pt;
+            font-weight: bold;
+            padding: 0px 6px;
+            min-height: 20px;
+            max-width: 400px;
+        }
+        QPushButton:pressed {
+            background-color: rgb(100,100,100);
+            color: white;
+            font-weight: bold;
+            font-family: Arial;
+        }
+        QPushButton:disabled {
+            background-color: rgb(30,30,30);
+            color: rgb(100,100,100);
+        }
+
+
+"""
+
+    return button_style
+
+
 class DarkPalette(QtGui.QPalette):
     """Class that inherits from pyqtgraph.QtGui.QPalette and renders dark colours for the application.
     (from pykilosort/kilosort4)
@@ -130,8 +295,9 @@ class DarkPalette(QtGui.QPalette):
         self.setColor(QtGui.QPalette.Link, QtGui.QColor(42, 130, 218))
         self.setColor(QtGui.QPalette.Highlight, QtGui.QColor(42, 130, 218))
         self.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor(0, 0, 0))
-        self.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text,
-                      QtGui.QColor(128, 128, 128))
+        self.setColor(
+            QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor(128, 128, 128)
+        )
         self.setColor(
             QtGui.QPalette.Disabled,
             QtGui.QPalette.ButtonText,
@@ -142,7 +308,3 @@ class DarkPalette(QtGui.QPalette):
             QtGui.QPalette.WindowText,
             QtGui.QColor(128, 128, 128),
         )
-
-
-
-
