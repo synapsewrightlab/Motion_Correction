@@ -240,7 +240,7 @@ class MainWindow(QMainWindow):
         layoutScroll.setColumnStretch(0, 0)
 
     def add_batch(self):
-        print("Adding to batch")
+        print(f"Adding {self.save_path} to batch")
         io.save_batch_db_settings(self)
         self.batch_list.append(self.save_path)
         L = len(self.batch_list)

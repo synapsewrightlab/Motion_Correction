@@ -42,10 +42,12 @@ class BatchView(QDialog):
 
     def remove_selected(self, parent):
         for item in self.list.selectedItems():
-            parent.batch_list.removeItem(item.text())
+            parent.batch_list.remove(item.text())
             print("Removed", item.text())
-        parent.list.clear()
-        parent.list.addItems(parent.batch_list)
+        self.list.clear()
+        self.list.addItems(parent.batch_list)
+
+        print(parent.batch_list)
 
     def exit_list(self):
         self.accept()
