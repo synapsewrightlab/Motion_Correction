@@ -20,8 +20,8 @@ def load_settings(parent, filename=None):
     # Get the settings values
     if not filename:
         print("No File Selected")
-        return 
-    
+        return
+
     else:
         if isinstance(filename, pathlib.Path):
             filename = str(filename)
@@ -31,10 +31,11 @@ def load_settings(parent, filename=None):
                 settings_in = json.load(f)
         else:
             settings_in = np.load(filename, allow_pickle=True).item()
-    
+
     # Reset the Gui settings to the loaded values
     set_default_settings(parent.SETTINGS, settings_in)
     set_settings(parent.SETTINGS, parent.settings_gui)
+
 
 def load_db(parent, filename=None):
     """Function to get and load database file"""
@@ -42,11 +43,11 @@ def load_db(parent, filename=None):
     if filename is None:
         name = QFileDialog.getOpenFileName(parent, "Open database file (npy or json)")
         filename = name[0]
-    
+
     if not filename:
         print("No File Selected")
-        return 
-    
+        return
+
     else:
         if isinstance(filename, pathlib.Path):
             filename = str(filename)
@@ -66,7 +67,7 @@ def get_file_folders(parent, ftype="data_path", name=None):
     """Function to get file folder paths"""
     if name is None:
         name = QFileDialog.getExistingDirectory(parent, "choose file folder")
-    
+
     if len(name) > 0:
         print(f"adding {name} to {ftype}")
         if ftype == "data_path":
@@ -78,7 +79,7 @@ def get_file_folders(parent, ftype="data_path", name=None):
                     break
             # Update buttons
             parent.runButton.setEnabled(True)
-            #parent.addToBatch.setEnabled(True)
+            # parent.addToBatch.setEnabled(True)
             parent.remove_path_btn.setEnabled(True)
         else:
             parent.db_gui[ftype].setText(name)
@@ -104,7 +105,7 @@ def remove_selected_paths(parent):
         parent.db_gui["data_path"][i].setToolTip("")
         parent.data_path_checkboxes[i].setChecked(False)
         parent.data_path_checkboxes[i].setVisible(False)
-    
+
     # Repopulate the remaining paths
     for i, path in enumerate(remaining_paths):
         parent.db_gui["data_path"][i].setText(path)
@@ -114,7 +115,7 @@ def remove_selected_paths(parent):
     # Disable buttons is no datapaths remain
     if len(remaining_paths) == 0:
         parent.runButton.setEnabled(False)
-        #parent.addToBatch.setEnabled(False)
+        # parent.addToBatch.setEnabled(False)
         parent.remove_path_btn.setEnabled(False)
 
 
@@ -127,6 +128,7 @@ def save_settings(parent):
         np.save(name, settings)
         print(f"saved current settings to {name}")
 
+
 def save_db(parent):
     """FUnction to save the current db to file"""
     name = QFileDialog.getSaveFileName(parent, "Database name (*.npy)")
@@ -135,6 +137,24 @@ def save_db(parent):
         name = name[0]
         np.save(name, db)
         print(f"saved current database to {name}")
+
+
+def save_batch_db_settings(parent):
+    """Helper function to save db and batches for each batch"""
+
+    print("saving db and settings")
+    db = get_db(parent.DB, parent.db_gui)
+    settings = get_settings(parent.SETTINGS, parent.settings_gui)
+    save_path0 = (
+        db["save_path0"] if db["save_path0"] is not None else db["data_path"][0]
+    )
+    parent.save_path = os.path.join(save_path0, db["save_folder"])
+    settings_file = os.path.join(parent.save_path, "settings.npy")
+    db_file = os.path.join(parent.save_path, "db.npy")
+    if not os.path.isdir(parent.save_path):
+        os.makedirs(parent.save_path)
+    np.save(settings_file, settings)
+    np.save(db_file, db)
 
 
 def set_default_db(DB, db):
@@ -147,9 +167,9 @@ def set_db(DB, db_gui, parent=None):
     """Helper function to set the gui DB"""
     for key in db_gui.keys():
 
-        if DB[key]["type"] ==  bool:
+        if DB[key]["type"] == bool:
             db_gui[key].setChecked(DB[key]["default"])
-        
+
         elif key in FILE_KEYS:
             if key == "data_path":
                 for i in range(9):
@@ -169,7 +189,9 @@ def set_db(DB, db_gui, parent=None):
         else:
             if DB[key]["default"] is not None:
                 if key in COMBO_KEYS:
-                    all_items = [db_gui[key].itemText(i) for i in range(db_gui[key].count())]
+                    all_items = [
+                        db_gui[key].itemText(i) for i in range(db_gui[key].count())
+                    ]
                     db_gui[key].setCurrentIndex(all_items.index(DB[key]["default"]))
                 elif DB[key]["type"] == list or DB[key]["type"] == tuple:
                     db_gui[key].setText(list_to_str(DB[key]["default"]))
@@ -200,21 +222,27 @@ def set_settings(SETTINGS, settings_gui):
         else:
             if SETTINGS[key]["default"] is not None:
                 if key in COMBO_KEYS:
-                    all_items = [settings_gui[key].itemText(i) for i in range(settings_gui[key].count())]
-                    settings_gui[key].setCurrentIndex(all_items.index(SETTINGS[key]["default"]))
+                    all_items = [
+                        settings_gui[key].itemText(i)
+                        for i in range(settings_gui[key].count())
+                    ]
+                    settings_gui[key].setCurrentIndex(
+                        all_items.index(SETTINGS[key]["default"])
+                    )
 
                 elif SETTINGS[key]["type"] == list or SETTINGS[key]["type"] == tuple:
                     settings_gui[key].setText(list_to_str(SETTINGS[key]["default"]))
 
                 else:
                     settings_gui[key].setText(str(SETTINGS[key]["default"]))
-            
+
             else:
                 settings_gui[key].setText("")
 
 
-
-        
-
-    
-    
+def revert_default_settings(parent):
+    """Function to revert to default settings"""
+    # Reset the Gui settings to the loaded values
+    settings_in = parameters.SETTINGS
+    set_default_settings(parent.SETTINGS, settings_in)
+    set_settings(parent.SETTINGS, parent.settings_gui)

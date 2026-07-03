@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
 
 from superqt import QCollapsible
 
-
+from .batch_window import BatchView
 from . import styles, menus, gui_utils, io
 from .. import parameters
 
@@ -145,13 +145,13 @@ class MainWindow(QMainWindow):
 
         # Add run button
         self.runButton = QPushButton("Run Motion Correction")
-        self.runButton.clicked.connect(lambda: run_temp())
+        self.runButton.clicked.connect(lambda: self.run_motion_correction())
         self.runButton.setEnabled(False)
         self.runButton.setStyleSheet(styles.pushButtonStyle())
         self.layout.addWidget(self.runButton, n0, 0, 1, 1)
         # Add stop button
         self.stopButton = QPushButton("STOP")
-        self.stopButton.clicked.connect(lambda: print("Add Function"))
+        self.stopButton.clicked.connect(lambda: self.stop())
         self.stopButton.setEnabled(False)
         self.stopButton.setStyleSheet(styles.pushButtonStyle())
         self.layout.addWidget(self.stopButton, n0, 1, 1, 1)
@@ -239,6 +239,49 @@ class MainWindow(QMainWindow):
         layoutScroll.addWidget(QLabel(""), b, 0, 1, 1)
         layoutScroll.setColumnStretch(0, 0)
 
+    def add_batch(self):
+        print("Adding to batch")
+        io.save_batch_db_settings(self)
+        self.batch_list.append(self.save_path)
+        L = len(self.batch_list)
+
+        # Clear db
+        io.set_default_db(self.DB, parameters.default_db())
+        io.set_db(self.DB, self.db_gui, parent=self)
+
+        # And enable the run button
+        self.runButton.setEnabled(True)
+
+    def view_batch(parent):
+        BV = BatchView(parent)
+        result = BV.exec_()
+
+    def run_motion_correction(self):
+        self.finish = True
+        self.error = False
+
+        if len(self.batch_list) == 0:
+            io.save_batch_db_settings(self)
+        else:
+            self.save_path = self.batch_list[self.ibatch]
+
+        settings_file = os.path.join(self.save_path, "settings.npy")
+        db_file = os.path.join(self.save_path, "db.py")
+
+        print("Running Motion Correction with command:")
+        cmd = f"-m motion_correction -- settings {settings_file} -- db {db_file} --verbose"
+        print("python" + cmd)
+
+        self.worker = gui_utils.MotionCorrectWorker(
+            self, db_file=db_file, settings_file=settings_file
+        )
+        self.worker.finished.connect(self.finished)
+
+        self.runButton.setEnabled(False)
+        self.stopButton.setEnabled(True)
+
+        self.worker.start()
+
     # define a new slot the recives a string
     @QtCore.Slot(str)
     def update_text(self, log_text):
@@ -247,21 +290,40 @@ class MainWindow(QMainWindow):
         cursor.insertText(log_text)
         self.textEdit.ensureCursorVisible()
 
-    # def stop(self):
-    #     self.finish = False
-    #     self.worker.quit()
-    #     self.worker.terminate()
-    #     self.finished(msg=None)
+    def stop(self):
+        self.finish = False
+        self.worker.quit()
+        self.worker.terminate()
+        self.finished(msg=None)
+
+    @QtCore.Slot(str)
+    def finished(self, msg=None):
+        self.runButton.setEnabled(True)
+        self.stopButton.setEnabled(False)
+        print(msg)
+
+        if msg is None:
+            self.textEdit.appendPlainText("Interrupted by user (not finished)\n")
+
+        elif msg == "finished":
+            if len(self.batch_list) == 0:
+                pass
+            else:
+                self.textEdit.appendPlainText(
+                    "BATCH MODE %d more recordings remaining \n"
+                    % (len(self.batch_list) - self.ibatch - 1)
+                )
+                self.ibatch += 1
+                if self.ibatch < len(self.batch_list):
+                    self.run_motion_correction()
+
+        elif msg == "error":
+            self.textEdit.appendPlainText("Interrupted by error (not finished)\n")
 
     def closeEvent(self, event):
         """Custom close window function"""
 
         event.accept()
-
-
-def run_temp():
-    for i in range(1000):
-        print(f"The program is running. This is iteration {i}")
 
 
 def main():

@@ -3,6 +3,7 @@ from qtpy.QtGui import QAction
 from . import styles
 from . import io
 
+
 def fileMenu(parent):
     """Main Menu bar for the GUI"""
 
@@ -15,12 +16,16 @@ def fileMenu(parent):
     # Load settings
     parent.load_settings = QAction("&Open Settings File", parent)
     parent.load_settings.setShortcut("Ctrl+O")
-    parent.load_settings.triggered.connect(lambda: io.load_settings(parent, filename=None))
+    parent.load_settings.triggered.connect(
+        lambda: io.load_settings(parent, filename=None)
+    )
 
     # Revert to default settings
     parent.default_settings = QAction("&Revert to default settings")
     parent.default_settings.setShortcut("Ctrl+R")
-    parent.default_settings.triggered.connect(lambda: print("Add function"))
+    parent.default_settings.triggered.connect(
+        lambda: io.revert_default_settings(parent)
+    )
 
     # Save settings
     parent.save_settings = QAction("&Save Settings File", parent)
@@ -55,11 +60,11 @@ def batchMenu(parent):
 
     parent.add_batch = QAction("&Add to Batch")
     parent.add_batch.setShortcut("Ctrl+A")
-    parent.add_batch.triggered.connect(lambda: print("Add function"))
+    parent.add_batch.triggered.connect(lambda: parent.add_batch)
 
     parent.view_batch = QAction("&View/Edit Batch List")
     parent.view_batch.setShortcut("Ctrl+V")
-    parent.view_batch.triggered.connect(lambda: print("Add function"))
+    parent.view_batch.triggered.connect(lambda: parent.view_batch)
 
     main_menu = parent.menuBar()
     main_menu.setStyleSheet(styles.menuStyle())

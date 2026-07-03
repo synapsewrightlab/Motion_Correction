@@ -198,9 +198,6 @@ def scrollStyle():
             border: none;
         }
         QScrollBar:vertical {
-            background-color: rgb(30,30,30);
-        }
-        QScrollBar:vertical {
             background: transparent;
         }
         QScrollBar::handle:vertical {
