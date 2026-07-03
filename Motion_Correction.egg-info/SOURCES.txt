@@ -12,8 +12,12 @@ Motion_Correction.egg-info/dependency_links.txt
 Motion_Correction.egg-info/entry_points.txt
 Motion_Correction.egg-info/top_level.txt
 Motion_Correction/gui/__init__.py
+Motion_Correction/gui/batch_window.py
 Motion_Correction/gui/guiMC.py
 Motion_Correction/gui/gui_utils.py
+Motion_Correction/gui/io.py
+Motion_Correction/gui/menus.py
+Motion_Correction/gui/styles.py
 Motion_Correction/io/__init__.py
 Motion_Correction/io/binary.py
 Motion_Correction/io/io_utils.py

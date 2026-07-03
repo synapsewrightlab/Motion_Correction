@@ -79,7 +79,7 @@ def get_file_folders(parent, ftype="data_path", name=None):
                     break
             # Update buttons
             parent.runButton.setEnabled(True)
-            # parent.addToBatch.setEnabled(True)
+            parent.add_batch_btn.setEnabled(True)
             parent.remove_path_btn.setEnabled(True)
         else:
             parent.db_gui[ftype].setText(name)
@@ -115,7 +115,7 @@ def remove_selected_paths(parent):
     # Disable buttons is no datapaths remain
     if len(remaining_paths) == 0:
         parent.runButton.setEnabled(False)
-        # parent.addToBatch.setEnabled(False)
+        parent.add_batch_btn.setEnabled(False)
         parent.remove_path_btn.setEnabled(False)
 
 
