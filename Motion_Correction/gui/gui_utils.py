@@ -72,8 +72,8 @@ class MotionCorrectWorker2(QtCore.QThread):
         db = np.load(self.db_file, allow_pickle=True).item()
         settings = np.load(self.settings_file, allow_pickle=True).item()
         try:
-            logger_setup(db["save_path"])
-            run_motion_correct(db=db, settings=settings)
+            run_motion_correct.logger_setup(db["save_path"])
+            run_motion_correct.run_motion_correction(db=db, settings=settings)
             self.finished.emit("finished")
 
         except Exception as e:
@@ -87,6 +87,8 @@ class MotionCorrectWorker(QtCore.QObject):
     Worker that runs motion correction in a separate process to avoid
     QThread stack limitations on macOS.
     """
+
+    finished = QtCore.Signal(str)
 
     def __init__(self, parent, db_file, settings_file):
         super(MotionCorrectWorker, self).__init__()
@@ -103,8 +105,7 @@ class MotionCorrectWorker(QtCore.QObject):
         self.process.finished.connect(self._on_finished)
 
         # Create a Python script to run suite2p
-        script = f"""
-import numpy as np
+        script = f"""import numpy as np
 from Motion_Correction.run_motion_correct import logger_setup, run_motion_correction, get_save_folder
 
 db = np.load("{self.db_file}", allow_pickle=True).item()
@@ -190,7 +191,7 @@ class XStream(QtCore.QObject):
         return XStream._stderr
 
 
-def logger_setup(name):
+def setup_logger(name):
     """Sets up logger"""
     logger = logging.getLogger(name)
     handler = QtHandler()

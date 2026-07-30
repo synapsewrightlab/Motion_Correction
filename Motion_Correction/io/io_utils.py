@@ -9,35 +9,38 @@ logger = logging.getLogger(__name__)
 import numpy as np
 from natsort import natsorted
 
-EXTS = {"tif": ["*.tif", "*.tiff", "*.TIF", "*.TIFF"],
-        "h5": ["*.h5", "*.hdf5", "*.mesc"],
-        "sbx": ["*.sbx"],
-        "nd2": ["*.nd2"],
-        "dcimg": ["*.dcimg"],
-        "bruker": ["*.ome.tif", "*.ome.TIF"],
-        "movie": ["*.mp4", "*.avi"]}
+EXTS = {
+    "tif": ["*.tif", "*.tiff", "*.TIF", "*.TIFF"],
+    "h5": ["*.h5", "*.hdf5", "*.mesc"],
+    "sbx": ["*.sbx"],
+    "nd2": ["*.nd2"],
+    "dcimg": ["*.dcimg"],
+    "bruker": ["*.ome.tif", "*.ome.TIF"],
+    "movie": ["*.mp4", "*.avi"],
+}
+
 
 def list_files(file_root, exts, one_down=False):
     """Collect files matching given extension
-    
+
     INPUT PARAMETERS
         file_root: str
             Root directory to search for files
-        
+
         exts: list of str
             Glob patterns to match for file extensions
-        
+
         one_down: bool
             If True, will also search subdirectories of root directory
-    
+
     OUTPUT
         file_list: list of str
             Naturally sorted list of matching file paths
-        
+
         first_files: np.ndarray
             Boolean array of length len(file_list), where True marks the first
             file from each folder to track folder boundaries
-    
+
     """
     # Initialize outputs
     file_list = []
@@ -66,7 +69,9 @@ def list_files(file_root, exts, one_down=False):
             # Demarcate first file in folder and update file list
             if len(new_file_list) > 0:
                 file_list.extend(new_file_list)
-                first_files = np.append(first_files, np.zeros((len(new_file_list),), "bool"))
+                first_files = np.append(
+                    first_files, np.zeros((len(new_file_list),), "bool")
+                )
                 first_files[file_list_length] = True
                 file_list_length = len(file_list)
 
@@ -86,11 +91,11 @@ def get_file_list(database):
     OUTPUT
         all_files: list of str
             List of all file paths
-        
+
         first_files: np.ndarray
             Boolean array of length len(all_files), where True marks the first file
             from each folder
-    
+
     """
     # Get data path and file type
     data_path = database["data_path"]
@@ -102,9 +107,9 @@ def get_file_list(database):
         for file in database["file_list"]:
             all_files.append(os.path.join(data_path[0], file))
         first_files = np.zeros(len(all_files), dtype="bool")
-        first_files[0]= True
+        first_files[0] = True
         logger.info(f"--- Found {len(all_files)} files - converting to binary")
-    
+
     # Find files if not explicity given by user
     else:
         # Add subfolders to search if specified
@@ -120,14 +125,10 @@ def get_file_list(database):
         first_files = []
 
         for k, folder in enumerate(folder_list):
-            files, firsts = list_files(
-                folder,
-                database["one_down"],
-                EXTS[input_format]
-            )
+            files, firsts = list_files(folder, EXTS[input_format], database["one_down"])
             all_files.extend(files)
             first_files.extend(list(firsts))
-        
+
         if len(all_files) == 0:
             logger.info(f"Could not find any {EXTS[input_format]} files in {data_path}")
             raise Exception("No Files Found")
@@ -135,7 +136,7 @@ def get_file_list(database):
         else:
             first_files = np.array(first_files).astype("bool")
             logger.info(f"--- Found {len(all_files)} files - converting to binary")
-    
+
     return all_files, first_files
 
 
@@ -143,12 +144,12 @@ def init_database(db0):
     """
     Initialize per-plane database dictionaries and create output dictionaries
 
-    Creates a deep copy of db0 for each plane and each ROI, setting up save paths, 
+    Creates a deep copy of db0 for each plane and each ROI, setting up save paths,
     and fast-disk directories
 
     INPUT PARAMETERS
         db0: dict
-            Base database dictionary. Must contain "nplanes", "nchannels", 
+            Base database dictionary. Must contain "nplanes", "nchannels",
             "save_path0", and "save_folder". Optionally contains "fast_disk",
             "iplane", "lines", "dy", and "dx" (for multiple ROIs)
 
@@ -158,7 +159,7 @@ def init_database(db0):
                 "save_path", "fast_dict", "settings_path", "db_path", "reg_file",
                 and optionally "reg_file_chan2", "lines", "dy", "dx", "iroi",
                 "iplane"
-    
+
     """
     nplanes = db0["nplanes"]
     nchannels = db0["nchannels"]
@@ -171,7 +172,9 @@ def init_database(db0):
         nrois = len(db0["lines"])
         db0["nrois"] = nrois
         nfolders *= nrois
-        logger.info(f"NOTE: nplanes = {nplanes}, nrois = {nrois} -> nfolders = {nfolders}")
+        logger.info(
+            f"NOTE: nplanes = {nplanes}, nrois = {nrois} -> nfolders = {nfolders}"
+        )
         # Replicate lines across planes if nplanes > 1
         if nplanes > 1:
             lines0, dy0, dx0 = db0["lines"].copy(), db0["dy"].copy(), db0["dx"].copy()
@@ -180,21 +183,21 @@ def init_database(db0):
             dx = np.tile(dx0[np.newaxis, :], (nplanes, 1)).flatten()
             lines = []
             [lines.extend(lines0) for _ in range(nplanes)]
-            iroi = np.tile(np.arange(nrois)[np.newaxis,:], (nplanes, 1)).flatten()
+            iroi = np.tile(np.arange(nrois)[np.newaxis, :], (nplanes, 1)).flatten()
             iplane = np.tile(np.arange(nplanes)[:, np.newaxis], (1, nrois)).flatten()
         else:
             lines, dy, dx = db0["lines"].copy(), db0["dy"].copy(), db0["dx"].copy()
             iroi = np.arange(nrois)
             iplane = np.zeros(nrois, "int")
-        has_lines = True 
+        has_lines = True
 
     # Initialize database list
     database_list = []
 
-    # Set up the fast disk 
+    # Set up the fast disk
     if db0.get("fast_disk", None) is None or len(db0["fast_disk"]) == 0:
         db0["fast_disk"] = db0["save_path0"]
-    
+
     fast_disk = db0["fast_disk"]
 
     # Compile databases into list across the different planes
@@ -204,7 +207,7 @@ def init_database(db0):
         fast_disk = os.path.join(db["fast_disk"], "temp", f"plane{j}")
         db["fast_disk"] = fast_disk
         db["settings_path"] = os.path.join(db["save_path"], "settings.npy")
-        db["db_path"] = os.path.join(db["save_path"], "database.npy")
+        db["db_path"] = os.path.join(db["save_path"], "db.npy")
 
         db["save_path_chan1"] = os.path.join(db["save_path"], "Ch1")
         db["raw_file_chan1"] = os.path.join(fast_disk, "raw_chan1.bin")
@@ -217,8 +220,10 @@ def init_database(db0):
         if nchannels > 1:
             db["save_path_chan2"] = os.path.join(db["save_path"], "Ch2")
             db["raw_file_chan2"] = os.path.join(fast_disk, "raw_chan2.bin")
-            db["reg_file_chan2"] = os.path.join(db["save_path_chan2"], "aligned_chan2.bin")
-        
+            db["reg_file_chan2"] = os.path.join(
+                db["save_path_chan2"], "aligned_chan2.bin"
+            )
+
         # Make sure paths exist
         os.makedirs(db["fast_disk"], exist_ok=True)
         os.makedirs(db["save_path_chan1"], exist_ok=True)
@@ -227,5 +232,3 @@ def init_database(db0):
         database_list.append(db)
 
     return database_list
-
-
