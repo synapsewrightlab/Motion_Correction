@@ -8,13 +8,15 @@ from qtpy.QtWidgets import (
     QPushButton,
 )
 
+from . import styles
+
 
 class BatchView(QDialog):
     """Custom QDialog for editable batch list"""
 
     def __init__(self, parent=None):
         super(BatchView, self).__init__(parent)
-        # self.setGeometry(300, 300, 600, 320)
+        self.setGeometry(300, 300, 600, 320)
         self.setWindowTitle("Batch List")
 
         self.win = QWidget(self)
@@ -26,22 +28,26 @@ class BatchView(QDialog):
         self.list = QListWidget(parent)
         self.list.setSelectionMode(QAbstractItemView.MultiSelection)
         layout.addWidget(self.list, 1, 0, 10, 1)
-        self.lsit.addItems(parent.batch_list)
+        self.list.addItems(parent.batch_list)
 
         remove = QPushButton("Remove selection")
+        remove.setStyleSheet(styles.pushButtonStyle())
         remove.clicked.connect(lambda: self.remove_selected(parent))
         layout.addWidget(remove, 11, 0, 1, 1)
 
         done = QPushButton("Close")
+        done.setStyleSheet(styles.pushButtonStyle())
         done.clicked.connect(self.exit_list)
         layout.addWidget(done, 11, 1, 1, 1)
 
     def remove_selected(self, parent):
         for item in self.list.selectedItems():
-            parent.batch_list.removeItem(item.text())
+            parent.batch_list.remove(item.text())
             print("Removed", item.text())
-        parent.list.clear()
-        parent.list.addItems(parent.batch_list)
+        self.list.clear()
+        self.list.addItems(parent.batch_list)
+
+        print(parent.batch_list)
 
     def exit_list(self):
         self.accept()

@@ -471,8 +471,8 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
         if nchannels > 1:
             db["meanImg_chan2"] /= db["nframes"]
         # Save db and settings to each plane folder
-        np.save(db["save_path0"], db)
-        np.save(db["save_path0"], settings)
+        np.save(db["db_path"], db)
+        np.save(db["settings_path"], settings)
 
     return databases
   

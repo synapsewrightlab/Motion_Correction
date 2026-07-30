@@ -66,10 +66,10 @@ def load_db(parent, filename=None):
 def get_file_folders(parent, ftype="data_path", name=None):
     """Function to get file folder paths"""
     if name is None:
-        name = QFileDialog.getExistingDirectory(parent, "choose file folder")
+        name = QFileDialog.getExistingDirectory(parent, "Choose file folder")
 
     if len(name) > 0:
-        print(f"adding {name} to {ftype}")
+        print(f"Adding {name} to {ftype}")
         if ftype == "data_path":
             for i in range(9):
                 if len(parent.db_gui["data_path"][i].text()) == 0:
@@ -79,7 +79,7 @@ def get_file_folders(parent, ftype="data_path", name=None):
                     break
             # Update buttons
             parent.runButton.setEnabled(True)
-            # parent.addToBatch.setEnabled(True)
+            parent.add_batch_btn.setEnabled(True)
             parent.remove_path_btn.setEnabled(True)
         else:
             parent.db_gui[ftype].setText(name)
@@ -115,7 +115,7 @@ def remove_selected_paths(parent):
     # Disable buttons is no datapaths remain
     if len(remaining_paths) == 0:
         parent.runButton.setEnabled(False)
-        # parent.addToBatch.setEnabled(False)
+        parent.add_batch_btn.setEnabled(False)
         parent.remove_path_btn.setEnabled(False)
 
 
@@ -126,7 +126,7 @@ def save_settings(parent):
     if len(name) > 0 and name[0] is not None:
         name = name[0]
         np.save(name, settings)
-        print(f"saved current settings to {name}")
+        print(f"Saved current settings to {name}")
 
 
 def save_db(parent):
@@ -136,13 +136,12 @@ def save_db(parent):
     if len(name) > 0 and name[0] is not None:
         name = name[0]
         np.save(name, db)
-        print(f"saved current database to {name}")
+        print(f"Saved current database to {name}")
 
 
 def save_batch_db_settings(parent):
     """Helper function to save db and batches for each batch"""
 
-    print("saving db and settings")
     db = get_db(parent.DB, parent.db_gui)
     settings = get_settings(parent.SETTINGS, parent.settings_gui)
     save_path0 = (
@@ -153,6 +152,8 @@ def save_batch_db_settings(parent):
     db_file = os.path.join(parent.save_path, "db.npy")
     if not os.path.isdir(parent.save_path):
         os.makedirs(parent.save_path)
+    print(f"Saving db.npy at {parent.save_path}")
+    print(f"Saving settings.npy at {parent.save_path}")
     np.save(settings_file, settings)
     np.save(db_file, db)
 
