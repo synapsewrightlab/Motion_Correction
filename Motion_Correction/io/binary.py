@@ -53,7 +53,10 @@ class BinaryFile:
         else:
             mode = "r"
 
-        self.file = np.memmap(self.filename, mode=mode, dtype=self.dtype, shape=shape)
+        # self.file = np.memmap(self.filename, mode=mode, dtype=self.dtype, shape=shape)
+        self.file = np.lib.format.open_memmap(
+            self.filename, mode=mode, dtype=self.dtype, shape=shape
+        )
         self.index = 0
         self._can_read = True
 
