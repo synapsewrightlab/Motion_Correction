@@ -1,12 +1,18 @@
 import numpy as np
 
-from .s2p_reg_utils import convolve, complex_fft2, spatial_taper, temporal_smooth, ref_smooth_fft
+from .s2p_reg_utils import (
+    convolve,
+    complex_fft2,
+    spatial_taper,
+    temporal_smooth,
+    ref_smooth_fft,
+)
 
 import torch
 
 
 def phasecorr(
-    frames, 
+    frames,
     cfRefImg,
     maskMul,
     maskOffset,
@@ -20,7 +26,7 @@ def phasecorr(
     (complex) reference image. Computes integer pixel shifts (y, x) that maximize phase correlation
     within a limited search window.
 
-    
+
     PARAMETERS
         frames : torch.Tensor
             Input image sequence, expected shape (N, Ly, Lx) where N is the number of frames.
@@ -28,7 +34,7 @@ def phasecorr(
             Fourier-domain operations performed by the helper `convolve`.
 
         cfRefImg : torch.Tensor
-            Complex-valued reference of shape (Ly, Lx) in the Fourier domain used to compute 
+            Complex-valued reference of shape (Ly, Lx) in the Fourier domain used to compute
             cross-correlation with each frame
 
         maskMul : torch.Tensor
@@ -49,15 +55,15 @@ def phasecorr(
         return_cc : bool, optional (default False)
             If True, return the computed local phase-correlation maps as a NumPy array on CPU;
             otherwise the correlation maps are freed to save memory and None is returned in their place.
-    
+
     OUTPUT
         ymax : torch.LongTensor
             1-D integer tensor of length N with the y (row) shift for each frame that maximizes the
-            phase-correlation. 
+            phase-correlation.
 
         xmax : torch.LongTensor
             1-D integer tensor of length N with the x (column) shift for each frame that maximizes the
-            phase-correlation. 
+            phase-correlation.
 
         cmax : torch.Tensor
             1-D tensor of length N containing the maximum phase-correlation value found for each frame.
@@ -65,22 +71,34 @@ def phasecorr(
         cc : numpy.ndarray or None
             If `return_cc` is True, a NumPy array of shape (N, 2*lcorr+1, 2*lcorr+1) with the real-valued
             local phase-correlation maps (dtype float32) is returned. If `return_cc` is False, cc is None.
-    
+
     """
     device = frames.device
     data = (frames.float() * maskMul + maskOffset).type(torch.complex64)
     min_dim = min(data.shape[1], data.shape[2])
-    lcorr = int(np.minimum(np.roung(maxregshift * min_dim), min_dim // 2))
+    lcorr = int(np.minimum(np.round(maxregshift * min_dim), min_dim // 2))
 
     data = convolve(data, cfRefImg)
-    cc = torch.cat((torch.cat((data[:, -lcorr:, -lcorr:], data[:, -lcorr:, :lcorr + 1]), axis=2),   
-                    torch.cat((data[:, :lcorr + 1, -lcorr:], data[:, :lcorr + 1, :lcorr + 1]), axis=2)), axis=1)
+    cc = torch.cat(
+        (
+            torch.cat(
+                (data[:, -lcorr:, -lcorr:], data[:, -lcorr:, : lcorr + 1]), axis=2
+            ),
+            torch.cat(
+                (data[:, : lcorr + 1, -lcorr:], data[:, : lcorr + 1, : lcorr + 1]),
+                axis=2,
+            ),
+        ),
+        axis=1,
+    )
     cc = torch.real(cc)
 
     cc = temporal_smooth(cc, smooth_sigma_time) if smooth_sigma_time > 0 else cc
 
     imax = torch.stack([torch.argmax(cc[t]) for t in range(data.shape[0])], dim=0)
-    ymax, xmax = torch.div(imax, 2 * lcorr + 1, rounding_mode="floor"), imax % (2 * lcorr + 1)
+    ymax, xmax = torch.div(imax, 2 * lcorr + 1, rounding_mode="floor"), imax % (
+        2 * lcorr + 1
+    )
     cmax = cc[torch.arange(len(cc)), ymax, xmax]
     ymax, xmax = ymax - lcorr, xmax - lcorr
 
@@ -90,10 +108,10 @@ def phasecorr(
     else:
         del cc
         cc = None
-    
+
     if device.type == "cuda":
         torch.cuda.empty_cache()
-    
+
     return ymax, xmax, cmax, cc
 
 
@@ -127,7 +145,7 @@ def compute_masks_ref_smooth_fft(refImg, maskSlope, smooth_sigma):
     """
     Ly, Lx = refImg.shape
     maskMul = spatial_taper(maskSlope, Ly, Lx)
-    maskOffset = refImg.float().mean() * (1. - maskMul)
+    maskOffset = refImg.float().mean() * (1.0 - maskMul)
     cfRefImg = ref_smooth_fft(refImg=refImg, smooth_sigma=smooth_sigma)
 
     return maskMul, maskOffset, cfRefImg

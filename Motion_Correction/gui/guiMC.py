@@ -161,8 +161,8 @@ class MainWindow(QMainWindow):
         self.textEdit.setStyleSheet(styles.textEditStyle())
         self.layout.addWidget(self.textEdit, n0 + 1, 0, 16, cw + 2)
 
-        # gui_utils.XStream.stdout().messageWritten.connect(self.update_text)
-        # gui_utils.XStream.stderr().messageWritten.connect(self.update_text)
+        gui_utils.XStream.stdout().messageWritten.connect(self.update_text)
+        gui_utils.XStream.stderr().messageWritten.connect(self.update_text)
 
         # File settings
         fileSettingLabel = QLabel("File settings")

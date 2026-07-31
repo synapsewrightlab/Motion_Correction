@@ -185,7 +185,7 @@ def logger_setup(save_path=None):
     if save_path is not None and not Path(save_path).exists():
         Path(save_path).mkdir(parents=True, exist_ok=True)
 
-    mc_logger = logging.getLogger("motion_correction")
+    mc_logger = logging.getLogger("Motion_Correction")
     mc_logger.setLevel(logging.DEBUG)
 
     if not mc_logger.handlers:

@@ -14,9 +14,11 @@ from .register import register_frames, compute_crop, shift_frames_and_write
 from .make_summary import make_summary_video
 
 import logging
+
 logger = logging.getLogger(__name__)
 
-from .. import parameters, logger
+from .. import parameters
+
 
 def s2p_registration_wrapper(
     f_raw_chan1,
@@ -29,12 +31,13 @@ def s2p_registration_wrapper(
     aspect=1.0,
     settings=parameters.default_settings(),
     save_tif=False,
+    downsampled_frames=50,
     device=torch.device("cpu"),
 ):
     """
     Main registration function for suite2p registration. For single and two channel images
 
-    Computes reference image (if not provided), estimates bidirectional phase offset, 
+    Computes reference image (if not provided), estimates bidirectional phase offset,
     registers the primary channel, optionally performs two-step registration, applies shifts
     to alternate channel if present, and returns all registration outputs as dictionary
 
@@ -44,10 +47,10 @@ def s2p_registration_wrapper(
 
         f_reg_chan1: np.ndarray or BinaryFile
             Registered functional channel frames of shape (n_frmaes, Ly, Lx)
-        
+
         f_raw_chan2: np.ndarray or BinaryFile
             Raw second channel
-        
+
         f_reg_chan2: np.ndarray or BinaryFile
             Registered second channel
 
@@ -69,14 +72,14 @@ def s2p_registration_wrapper(
 
         device: torch.device
             Torch device from computation
-    
+
     OUTPUTS
         reg_outputs : dict
             Dictionary containing registration results with keys: "refImg", "rmin",
             "rmax", "meanImg", "yoff", "xoff", "corrXY", "yoff1", "xoff1",
             "corrXY1", "meanImg_chan2", "badframes", "badframes0", "yrange",
             "xrange", "bidiphase", "meanImgE", and optionally "zpos_registration",
-            "cmax_registration", "meanImg_upsample", "mean_img_ups", 
+            "cmax_registration", "meanImg_upsample", "mean_img_ups",
             and "counts_ups".
 
     """
@@ -97,9 +100,11 @@ def s2p_registration_wrapper(
     logger.info(f"Registering {nchannels} channels")
 
     if device.type == "mps":
-        logger.warning("MPS device does not support float64, using float32 for registration. "
-                       "If you encounter registration issues, try using cuda or cpu instead.")
-        
+        logger.warning(
+            "MPS device does not support float64, using float32 for registration. "
+            "If you encounter registration issues, try using cuda or cpu instead."
+        )
+
     ############# Compute reference image and bidiphase shift ##################
     n_frames, Ly, Lx = f_align_in.shape
     badframes0 = np.zeros(n_frames, bool)
@@ -108,9 +113,11 @@ def s2p_registration_wrapper(
     compute_bidi = settings["do_bidiphase"] and settings["bidiphase"] == 0
     # Grab frames
     if refImg is None or compute_bidi:
-        ix_frames = np.linspace(0, n_frames, 1 + min(settings["nimg_init"], n_frames), dtype=int)[:-1]
+        ix_frames = np.linspace(
+            0, n_frames, 1 + min(settings["nimg_init"], n_frames), dtype=int
+        )[:-1]
         frames = f_align_in[ix_frames].copy()
-    
+
     # Compute bidiphase shift
     if compute_bidi:
         bidiphase = bidi.compute(frames)
@@ -118,15 +125,15 @@ def s2p_registration_wrapper(
     else:
         bidiphase = settings["bidiphase"]
 
-    if bidiphase !=0 and refImg is None:
+    if bidiphase != 0 and refImg is None:
         frames = bidi.shift(frames, bidiphase)
-    
+
     # Compute the reference image
     if refImg is None:
         t0 = time.time()
         refImg = compute_reference_image(frames, settings=settings, device=device)
         logger.info("Reference frame, %0.2f sec." % (time.time() - t0))
-    
+
     refImg_orig = refImg.copy()
 
     # Register frames
@@ -160,11 +167,20 @@ def s2p_registration_wrapper(
             device=device,
             tif_root=tif_align_out,
             apply_shifts=True,
-            upsample_meanImg=settings.get("upsample_meanImg", False)
+            upsample_meanImg=settings.get("upsample_meanImg", False),
         )
 
         # Upack results
-        rmin, rmax, mean_img, offsets_all, blocks, mean_img_ups, counts_ups, meanImg_ups = outputs
+        (
+            rmin,
+            rmax,
+            mean_img,
+            offsets_all,
+            blocks,
+            mean_img_ups,
+            counts_ups,
+            meanImg_ups,
+        ) = outputs
         yoff, xoff, corrXY, yoff1, xoff1, corrXY1, zest, cmax_all = offsets_all
 
         # Compute value region and timepoints to exclude
@@ -179,7 +195,6 @@ def s2p_registration_wrapper(
             Lx=Lx,
         )
 
-    
     ########### Register Second Channel ################
     if nchannels > 1:
         mean_img_alt = shift_frames_and_write(
@@ -200,7 +215,7 @@ def s2p_registration_wrapper(
 
     if device.type == "cuda":
         torch.cuda.empty_cache()
-    
+
     if device.type == "mps":
         torch.mps.empty_cache()
 
@@ -209,16 +224,16 @@ def s2p_registration_wrapper(
         meanImg_chan2 = mean_img_alt if not align_by_chan2 else mean_img
     else:
         meanImg_chan2 = None
-    
+
     # Make and save summary video
-    make_summary_video(f_align_out, downsample_frames=settings["downsampled_frames"])
+    make_summary_video(f_align_out, downsample_frames=downsampled_frames)
     if nchannels > 1:
-        make_summary_video(f_alt_out, downsample_frames=settings["downsample_frames"])
+        make_summary_video(f_alt_out, downsample_frames=downsampled_frames)
 
     # Package results for output
     reg_outputs = registration_outputs_to_dict(
         refImg_orig,
-        rmin, 
+        rmin,
         rmax,
         meanImg,
         (yoff, xoff, corrXY),
@@ -246,7 +261,7 @@ def s2p_registration_wrapper(
 
 def registration_outputs_to_dict(
     refImg,
-    rmin, 
+    rmin,
     rmax,
     meanImg,
     rigid_offsets,
@@ -255,7 +270,7 @@ def registration_outputs_to_dict(
     badframes,
     badframes0,
     yrange,
-    xrange, 
+    xrange,
     bidiphase,
 ):
     """
@@ -305,7 +320,7 @@ def registration_outputs_to_dict(
             "corrXY", "meanImg", "badframes", "badframes0", "yrange", "xrange",
             "bidiphase", and optionally "yoff1", "xoff1", "corrXY1",
             "meanImg_chan2", "zpos_registration", "cmax_registration".
-    
+
     """
     # Initialize output
     reg_outputs = {}
@@ -317,13 +332,15 @@ def registration_outputs_to_dict(
     # assign offsets
     reg_outputs["yoff"], reg_outputs["xoff"], reg_outputs["corrXY"] = rigid_offsets
     if nonrigid_offsets[0] is not None:
-        reg_outputs["yoff1"], reg_outputs["xoff1"], reg_outputs["corrXY1"] = nonrigid_offsets
-    
+        reg_outputs["yoff1"], reg_outputs["xoff1"], reg_outputs["corrXY1"] = (
+            nonrigid_offsets
+        )
+
     # Assign mean images
     reg_outputs["meanImg"] = meanImg
     if meanImg_chan2 is not None:
         reg_outputs["meanImg_chan2"] = meanImg_chan2
-    
+
     # Assign crop computation and bad frames
     reg_outputs["badframes"], reg_outputs["badframes0"] = badframes, badframes0
     reg_outputs["yrange"], reg_outputs["xrange"] = yrange, xrange
@@ -331,5 +348,3 @@ def registration_outputs_to_dict(
     reg_outputs["bidiphase"] = bidiphase
 
     return reg_outputs
-
-

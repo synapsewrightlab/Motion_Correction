@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 def register_frames(
     f_align_in,
     refImg,
-    f_align_out, 
+    f_align_out,
     batch_size=100,
     bidiphase=0,
     norm_frames=True,
     smooth_sigma=1.15,
     spatial_taper=3.45,
-    block_size=(128,128),
+    block_size=(128, 128),
     nonrigid=True,
     maxregshift=0.1,
     smooth_sigma_time=0,
@@ -137,29 +137,41 @@ def register_frames(
         meanImg_ups : np.ndarray or None
             Super-resolution mean image of shape (Ly*upsample[0], Lx*upsample[1])
             after Gaussian smoothing and normalization by counts. None if upsample_meanImg is False.
-    
+
     """
     n_frames, Ly, Lx = f_align_in.shape
 
-    refAndMasks = compute_filters_and_norm(refImg, norm_frames=norm_frames,
-                                           spatial_smooth=smooth_sigma,
-                                           spatial_taper=spatial_taper,
-                                           block_size=block_size if nonrigid else None,
-                                           subpixel=subpixel, device=device)
-    
-    blocks = refAndMasks[-3] 
-    rmin = refAndMasks[-2] 
-    rmax = refAndMasks[-1] 
+    refAndMasks = compute_filters_and_norm(
+        refImg,
+        norm_frames=norm_frames,
+        spatial_smooth=smooth_sigma,
+        spatial_taper=spatial_taper,
+        block_size=block_size if nonrigid else None,
+        subpixel=subpixel,
+        device=device,
+    )
+
+    blocks = refAndMasks[-3]
+    rmin = refAndMasks[-2]
+    rmax = refAndMasks[-1]
 
     ################### Register frames to reference image ########################
     mean_img = np.zeros((Ly, Lx), "float32")
     if upsample_meanImg:
         if not isinstance(upsample_meanImg, (np.ndarray, list, tuple)):
             upsample_meanImg = [upsample_meanImg, upsample_meanImg]
-        
+
         ups_dtype = torch.float32 if device.type == "mps" else torch.double
-        mean_img_ups = torch.zeros((int(Ly*upsample_meanImg[0]), int(Lx*upsample_meanImg[1])), dtype=ups_dtype, device=device)
-        counts_ups = torch.zeros((int(Ly*upsample_meanImg[0]), int(Lx*upsample_meanImg[1])), dtype=torch.int, device=device)
+        mean_img_ups = torch.zeros(
+            (int(Ly * upsample_meanImg[0]), int(Lx * upsample_meanImg[1])),
+            dtype=ups_dtype,
+            device=device,
+        )
+        counts_ups = torch.zeros(
+            (int(Ly * upsample_meanImg[0]), int(Lx * upsample_meanImg[1])),
+            dtype=torch.int,
+            device=device,
+        )
     else:
         mean_img_ups, counts_ups, meanImg_ups = None, None, None
 
@@ -170,9 +182,9 @@ def register_frames(
 
     for n in trange(n_batches, mininterval=10, file=tqdm_out):
         ## Set frame range for the batch
-        tstart, tend = n * batch_size, min((n+1) * batch_size, n_frames)
+        tstart, tend = n * batch_size, min((n + 1) * batch_size, n_frames)
         # Read data and convert to tensor
-        frames = f_align_in[tstart : tend]
+        frames = f_align_in[tstart:tend]
         if device.type == "cuda":
             fr_torch = torch.from_numpy(frames).pin_memory().to(device)
         else:
@@ -196,35 +208,54 @@ def register_frames(
         # Apply shifts to image
         if apply_shifts:
             frames = shift_frames(
-                fr_torch, ymax, xmax, ymax1, xmax1, blocks, mean_img_ups=mean_img_ups,
-                counts_up=counts_ups, device=device,
+                fr_torch,
+                ymax,
+                xmax,
+                ymax1,
+                xmax1,
+                blocks,
+                mean_img_ups=mean_img_ups,
+                counts_up=counts_ups,
+                device=device,
             )
 
         # Convert to numpy and concatenate offsets
         ymax, xmax, cmax = ymax.cpu().numpy(), xmax.cpu().numpy(), cmax.cpu().numpy()
 
         if ymax1 is not None:
-            ymax1, xmax1, cmax1 = ymax1.cpu().numpy(), xmax1.cpu().numpy(), cmax1.cpu().numpy()
+            ymax1, xmax1, cmax1 = (
+                ymax1.cpu().numpy(),
+                xmax1.cpu().numpy(),
+                cmax1.cpu().numpy(),
+            )
 
         offsets = [ymax, xmax, cmax, ymax1, xmax1, cmax1, zest, cmax_all]
-        offsets_all = ([np.concatenate((offset_all, offset), axis=0)
-                        if offset is not None else None
-                        for offset_all, offset in zip(offsets_all, offsets)]
-                        if n > 0 else offsets)
+        offsets_all = (
+            [
+                (
+                    np.concatenate((offset_all, offset), axis=0)
+                    if offset is not None
+                    else None
+                )
+                for offset_all, offset in zip(offsets_all, offsets)
+            ]
+            if n > 0
+            else offsets
+        )
 
         # Make mean image from all registered frames
         mean_img += frames.sum(axis=0) / n_frames
 
         # Save aligned frames to bin file
         if apply_shifts:
-            f_align_out[tstart : tend] = frames
+            f_align_out[tstart:tend] = frames
 
             # Save aligned image as tif if specified
             if tif_root:
                 bname = Path(f_align_out.filename).stem
-                fname = os.path.join(tif_root, f"{bname}_{n : 0.5d}.tif")
+                fname = os.path.join(tif_root, f"{bname}_{n}.tif")
                 save_tiff(mov=frames, fname=fname)
-    
+
     if upsample_meanImg:
         # apply Gaussian smoothing and normalize
         mimg = mean_img_ups.cpu().numpy()
@@ -234,22 +265,30 @@ def register_frames(
         cimg = gaussian_filter(cimg, sig)
         meanImg_ups = mimg / cimg
 
-    return rmin, rmax, mean_img, offsets_all, blocks, mean_img_ups, counts_ups, meanImg_ups
-
+    return (
+        rmin,
+        rmax,
+        mean_img,
+        offsets_all,
+        blocks,
+        mean_img_ups,
+        counts_ups,
+        meanImg_ups,
+    )
 
 
 def shift_frames_and_write(
-    f_alt_in, 
-    f_alt_out=None, 
-    batch_size=100, 
-    yoff=None, 
-    xoff=None, 
+    f_alt_in,
+    f_alt_out=None,
+    batch_size=100,
+    yoff=None,
+    xoff=None,
     yoff1=None,
-    xoff1=None, 
-    blocks=None, 
-    bidiphase=0, 
-    device=torch.device("cuda"), 
-    tif_root=None
+    xoff1=None,
+    blocks=None,
+    bidiphase=0,
+    device=torch.device("cuda"),
+    tif_root=None,
 ):
     """
     Apply pre-computed registration shifts to an alternate channel and write results.
@@ -258,7 +297,7 @@ def shift_frames_and_write(
     primary channel to the alternate channel frames, in batches. Writes the
     shifted frames to f_alt_out if provided, otherwise overwrites f_alt_in.
 
-    PARAMETERS  
+    PARAMETERS
         f_alt_in : np.ndarray or BinaryFile
             Alternate channel input frames of shape (n_frames, Ly, Lx).
 
@@ -308,14 +347,14 @@ def shift_frames_and_write(
 
     # Iterate through the batched
     for n in trange(n_batches, mininterval=10, file=tqdm_out):
-        tstart, tend = n * batch_size, min((n+1) * batch_size, n_frames)
+        tstart, tend = n * batch_size, min((n + 1) * batch_size, n_frames)
         # Read in the data to shift
-        frames = f_alt_in[tstart : tend]
-        yoffk, xoffk = yoff[tstart : tend].astype(int), xoff[tstart : tend].astype(int)
+        frames = f_alt_in[tstart:tend]
+        yoffk, xoffk = yoff[tstart:tend].astype(int), xoff[tstart:tend].astype(int)
 
         if yoff1 is not None:
-            yoff1k, xoff1k = yoff1[tstart : tend], xoff1[tstart : tend]
-            
+            yoff1k, xoff1k = yoff1[tstart:tend], xoff1[tstart:tend]
+
         if device.type == "cuda":
             fr_torch = torch.from_numpy(frames).pin_memory().to(device)
         else:
@@ -324,19 +363,20 @@ def shift_frames_and_write(
         if bidiphase != 0:
             fr_torch = bidi.shift(fr_torch, bidiphase)
         # Shift the frames
-        frames = shift_frames(fr_torch, yoffk, xoffk, yoff1k, xoff1k, blocks, device=device)
+        frames = shift_frames(
+            fr_torch, yoffk, xoffk, yoff1k, xoff1k, blocks, device=device
+        )
         mean_img += frames.sum(axis=0) / n_frames
 
-        f_alt_out[tstart : tend] = frames
+        f_alt_out[tstart:tend] = frames
 
         # save aligned frames to tiffs
         if tif_root:
             bname = Path(f_alt_out.filename).stem
-            fname = os.path.join(tif_root, f"{bname}_{n : 0.5d}.tif")
+            fname = os.path.join(tif_root, f"{bname}_{n}.tif")
             save_tiff(mov=frames, fname=fname)
 
     return mean_img
-
 
 
 def compute_shifts(
@@ -398,25 +438,46 @@ def compute_shifts(
 
     """
 
-    (maskMul, maskOffset, cfRefImg, maskMulNR, maskOffsetNR, cfRefImgNR, 
-        blocks, rmin, rmax) = refAndMasks
-    
+    (
+        maskMul,
+        maskOffset,
+        cfRefImg,
+        maskMulNR,
+        maskOffsetNR,
+        cfRefImgNR,
+        blocks,
+        rmin,
+        rmax,
+    ) = refAndMasks
+
     device = fr_reg.device
 
     fr_reg = torch.clip(fr_reg, rmin, rmax) if rmin > -np.inf else fr_reg
 
     # rigid registration
-    ymax, xmax, cmax = rigid.phasecorr(fr_reg, cfRefImg, maskMul, maskOffset, 
-                                    maxregshift, smooth_sigma_time)[:3]
-    
+    ymax, xmax, cmax = rigid.phasecorr(
+        fr_reg, cfRefImg, maskMul, maskOffset, maxregshift, smooth_sigma_time
+    )[:3]
+
     # nonrigid registration
     if maskMulNR is not None and maxregshiftNR > 0:
         # Shift torch frames to the reference
-        fr_reg = torch.stack([torch.roll(frame, shifts=(-dy, -dx), dims=(0,1))
-                              for frame, dy, dx in zip(fr_reg, ymax, xmax)], axis=0)
-        ymax1, xmax1, cmax1 = nonrigid.phasecorr(fr_reg, blocks,
-                                                 maskMulNR, maskOffsetNR, cfRefImgNR,
-                                                 snr_thresh, maxregshiftNR)[:3]
+        fr_reg = torch.stack(
+            [
+                torch.roll(frame, shifts=(-dy, -dx), dims=(0, 1))
+                for frame, dy, dx in zip(fr_reg, ymax, xmax)
+            ],
+            axis=0,
+        )
+        ymax1, xmax1, cmax1 = nonrigid.phasecorr(
+            fr_reg,
+            blocks,
+            maskMulNR,
+            maskOffsetNR,
+            cfRefImgNR,
+            snr_thresh,
+            maxregshiftNR,
+        )[:3]
     else:
         ymax1, xmax1, cmax1 = None, None, None
 
@@ -425,7 +486,7 @@ def compute_shifts(
         torch.cuda.empty_cache()
     if device.type == "mps":
         torch.mps.empty_cache()
-    
+
     return ymax, xmax, cmax, ymax1, xmax1, cmax1, None, None
 
 
@@ -470,13 +531,18 @@ def shift_frames(
     OUTPUT
         frames_out : np.ndarray
             Shifted frames of shape (N, Ly, Lx), dtype matching the torch output.
-    
-    
+
+
     """
     # Perform the rigid shifts
-    fr_torch = torch.stack([torch.roll(frame, shifts=(-dy, -dx), dims=(0, 1))
-                               for frame, dy, dx in zip(fr_torch, yoff, xoff)], axis=0)
-    
+    fr_torch = torch.stack(
+        [
+            torch.roll(frame, shifts=(-dy, -dx), dims=(0, 1))
+            for frame, dy, dx in zip(fr_torch, yoff, xoff)
+        ],
+        axis=0,
+    )
+
     # Non rigid shifts
     if yoff1 is not None:
         if isinstance(yoff1, np.ndarray):
@@ -490,25 +556,25 @@ def shift_frames(
             else:
                 yoff1 = torch.from_numpy(yoff1).to(device)
                 xoff1 = torch.from_numpy(xoff1).to(device)
-        
-        fr_torch = nonrigid.transform_data(fr_torch, blocks[2], blocks[1], blocks[0],
-                                           yoff1, xoff1, data_ups=mean_img_ups, counts_ups=counts_up)
-    
+
+        fr_torch = nonrigid.transform_data(
+            fr_torch,
+            blocks[2],
+            blocks[1],
+            blocks[0],
+            yoff1,
+            xoff1,
+            data_ups=mean_img_ups,
+            counts_ups=counts_up,
+        )
+
     frames_out = np.empty(fr_torch.shape, dtype="int16")
     frames_out = fr_torch.cpu().numpy()
 
     return frames_out
 
-def compute_crop(
-        xoff, 
-        yoff, 
-        corrXY, 
-        th_badframes, 
-        badframes, 
-        maxregshift,
-        Ly, 
-        Lx
-):
+
+def compute_crop(xoff, yoff, corrXY, th_badframes, badframes, maxregshift, Ly, Lx):
     """
     Determine how much to crop the FOV based on registration motion offsets.
 
@@ -557,7 +623,7 @@ def compute_crop(
     dx = xoff - medfilt(xoff, filter_window)
     dy = yoff - medfilt(yoff, filter_window)
     # offset in x and y (normed by mean offset)
-    dxy = (dx**2 + dy**2)**.5
+    dxy = (dx**2 + dy**2) ** 0.5
     dxy = dxy / dxy.mean()
     # phase-corr of each frame with reference (normed by median phase-corr)
     cXY = corrXY / medfilt(corrXY, filter_window)
@@ -610,10 +676,12 @@ def check_offsets(yoff, xoff, yoff1, xoff1, n_frames):
         raise ValueError("no rigid registration offsets provided")
     elif yoff.shape[0] != n_frames or xoff.shape[0] != n_frames:
         raise ValueError(
-            "rigid registration offsets are not the same size as input frames")
+            "rigid registration offsets are not the same size as input frames"
+        )
     if yoff1 is not None and (yoff1.shape[0] != n_frames or xoff1.shape[0] != n_frames):
         raise ValueError(
-                "nonrigid registration offsets are not the same size as input frames")
+            "nonrigid registration offsets are not the same size as input frames"
+        )
 
 
 def save_tiff(mov: np.ndarray, fname: str) -> None:
@@ -629,6 +697,7 @@ def save_tiff(mov: np.ndarray, fname: str) -> None:
         Output tiff file path.
     """
     from tifffile import TiffWriter
+
     with TiffWriter(fname) as tif:
         for frame in np.floor(mov).astype(np.int16):
             tif.write(frame, contiguous=True)
