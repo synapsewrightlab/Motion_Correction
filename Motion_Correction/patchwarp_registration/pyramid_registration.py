@@ -1,0 +1,255 @@
+import numpy as np
+import warnings
+
+
+def compute_shifts(
+    refImg,
+    f_reg,
+    rigid_norm_method,
+    rigid_norm_radius,
+    rigid_template_center_frac,
+):
+    """
+    Function to compute the shifts using a pyrammid-based hill-climbing approach
+
+    PARAMETERS
+        refImg : np.ndarray
+            Reference image for alignment, of shape (Ly, Lx)
+
+        f_reg : np.ndarray
+            Input frames of shape (n_frames, Ly, Lx), supporting slice indexing.
+
+        rigid_norm_method : str
+            Normalization method. Can be 'rank' or 'local'
+
+        rigid_norm_radius : int
+            Radius of normalization filter for the local method
+
+        rigid_template_center_frac : float
+            Central fraction of template used for registration
+
+    OUTPUTS
+         ymax : np.ndarray
+            1-D integer array of length N with the y (row) shift for each frame that maximizes the
+            phase-correlation.
+
+        xmax : np.ndarray
+            1-D integer array of length N with the x (column) shift for each frame that maximizes the
+            phase-correlation.
+
+        cmax : np.ndarray
+            1-D array of length N containing the maximum phase-correlation value found for each frame.
+
+    """
+
+    nframes = f_reg.shape[0]
+    ymax = np.zeros(nframes)
+    xmax = np.zeros(nframes)
+    cmax = np.zeros(nframes)
+
+    if rigid_norm_method == "rank":
+        refImg = rank_transform(np.expand_dims(refImg, axis=0))[0]
+        f_reg = rank_transform(f_reg)
+
+    elif rigid_norm_method == "local":
+        raise ("Still need to code this")
+
+    # Use on the center of the image for calculating shifts
+    center_target = get_center(refImg, rigid_template_center_frac)
+
+    max_iter = np.ceil(np.sum(refImg.size - center_target.size) / 2)
+
+    for i in range(nframes):
+        # Get center of the source frame
+        center_source = get_center(f_reg[i, :, :], rigid_template_center_frac)
+
+        # Build the pyramid
+        target_pyramid = build_pyramid(center_target, n_levels=3)
+        source_pyramid = build_pyramid(center_source)
+
+        # Perform pyramid registration step
+        shift, score = pyramid_step(target_pyramid, source_pyramid, max_iter=max_iter)
+
+        # Perform bilinear interpolation of the shifts
+        shift, score = bilinear_step(
+            center_target, center_source, dy=shift[0], dx=shift[1]
+        )
+
+        ymax[i] = shift[0]
+        xmax[i] = shift[1]
+        cmax[i] = score
+
+
+def bilinear_step(target, source, dy, dx):
+    """Helper function to perform the bilinear interpolation shift step"""
+    cc = np.zeros((3, 3))
+
+    cc[0, 1] = covariance_score(target, source, dy=dy - 1, dx=dx)
+    cc[1, 0] = covariance_score(target, source, dy=dy, dx=dx - 1)
+    cc[1, 1] = covariance_score(target, source, dy=dy, dx=dx)
+    cc[1, 2] = covariance_score(target, source, dy=dy, dx=dx + 1)
+    cc[2, 1] = covariance_score(target, source, dy=dy + 1, dx=dx)
+
+    d, c = sub_pixel_interpolate(cc)
+
+    final_shift = (dy + d[0], dx + d[1])
+
+    return final_shift, c
+
+
+def pyramid_step(target_pyramid, source_pyramid, max_iter):
+    """Helper function to perform the pyramid registration step"""
+    shift = (0, 0)
+    # Get source pyramid
+    for level_target, level_source in zip(target_pyramid, source_pyramid):
+        shift, score = hill_climb(
+            level_target, level_source, shift, max_step=8, min_step=1, max_iter=max_iter
+        )
+        shift = (shift[0] * 2, shift[1] * 2)
+
+    final_shift = (shift[0] // 2, shift[1] // 2)
+
+    return final_shift, score
+
+
+def sub_pixel_interpolate(arr):
+    """Helper function to estimate quadratic interpolation for subpixel shift estimation"""
+    assert arr.shape == (3, 3), "Wrong matrix size. Input should be numerical 3x3."
+
+    top = arr[0, 1]
+    left = arr[1, 0]
+    center = arr[1, 1]
+    right = arr[1, 2]
+    bottom = arr[2, 1]
+
+    if np.any(np.isnan([top, left, center, right, bottom])):
+        warnings.warn("Cannot handle NaN values")
+        return np.array([0.0, 0.0]), center
+
+    assert (
+        np.max([left, top, center, bottom, right]) == center
+    ), "Wrong matrix. Should be centered on max"
+
+    v = np.array([top, left, center, right, bottom])
+
+    coeff = np.array(
+        [
+            [1 / 4, 1 / 4, -1, 1 / 4, 1 / 4],
+            [
+                -1 / 2,
+                0,
+                0,
+                0,
+                1 / 2,
+            ],
+            [0, -1 / 2, 0, 1 / 2, 0],
+            [0, 0, 1, 0, 0],
+        ]
+    )
+
+    p1, p2, p3, p4 = coeff @ v
+
+    if p1 >= 0:
+        return np.array([0.0, 0.0]), center
+
+    d = np.array([-p2 / (2 * p1), -p3 / (2 * p1)])
+    c = p4 - (p2**2 + p3**2) / (4 * p1)
+
+    return d, c
+
+
+def hill_climb(target, source, initial_shift, max_step=8, min_step=1, max_iter=10):
+    """Helper function to perform hill-climbing pattern search"""
+    dy, dx = initial_shift
+    step = max_step
+    best_score = covariance_score(target, source, dy, dx)
+
+    for _ in range(max_iter):
+        candidates = [
+            (dy + s * step, dx + t * step)
+            for s in (-1, 0, 1)
+            for t in (-1, 0, 1)
+            if not (s == 0 and t == 0)
+        ]
+        scores = [
+            (covariance_score(target, source, cy, cx), (cy, cx))
+            for cy, cx in candidates
+        ]
+        best_candidate_score, best_candidate = max(scores, key=lambda p: p[0])
+
+        if best_candidate_score > best_score:
+            best_score = best_candidate_score
+            dy, dx = best_candidate
+
+        else:
+            step //= 2
+            if step < min_step:
+                break
+
+    return (dy, dx), best_score
+
+
+def covariance_score(target, source, dy, dx):
+    """Helper function to calculate the covariance between two frames"""
+    shifted = np.roll(source, shift=(dy, dx), axis=(0, 1))
+
+    # Crop to a valid overlap so wrap around pixels don't pollute the image
+    h, w = target.shape
+    y0, y1 = max(0, -dy), h - max(0, dy)
+    x0, x1 = max(0, -dx), w - max(0, dx)
+
+    t = target[y0:y1, x0:x1]
+    s = shifted[y0:y1, x0:x1]
+
+    t_c = t - t.mean()
+    s_c = s - s.mean()
+
+    cov = np.sum(t_c * s_c) / t_c.size
+
+    return cov
+
+
+def build_pyramid(frame, n_levels=3):
+    """Helper function to build the pyramid of images for registration"""
+    pyramid_multiply = 2
+
+    pyramid = [frame]
+    current = frame
+    for _ in range(n_levels):
+        current = box_downsample(current, pyramid_multiply)
+        pyramid.append(current)
+
+    return pyramid[::-1]
+
+
+def box_downsample(img, factor):
+    """Helper function to downsample images for the pyramid"""
+    h, w = img.shape
+    h2 = h - h % factor
+    w2 = w - w % factor
+    img = img[:h2, :w2]
+    return img.reshape(h2 // factor, factor, w2 // factor, factor).mean(axis=(1, 3))
+
+
+def get_center(img, factor):
+    """Helper function to get the center of the image for registration"""
+    h, w = img.shape
+    new_h = int(round(h * factor))
+    new_w = int(round(w * factor))
+
+    start_h = (h - new_h) // 2
+    start_w = (w - new_w) // 2
+
+    return img[start_h : start_h + new_h, start_w : start_w + new_w]
+
+
+def rank_transform(img_stack):
+    """Function to perform rank normalization of images"""
+
+    result = np.zeros(img_stack.size)
+    for i in range(img_stack.size[0]):
+        img = img_stack[i, :, :]
+        _, _, ic = np.unique(img, return_index=True, return_inverse=True)
+        result[i, :, :] = ic.reshape(img.shape)
+
+    return result
