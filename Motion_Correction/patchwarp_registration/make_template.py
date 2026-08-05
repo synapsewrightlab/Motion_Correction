@@ -4,7 +4,23 @@ import pandas as pd
 
 
 def make_template(image_stack, threshold, fftdenoise):
-    """Helper function to make the initial template from multiple frames"""
+    """Helper function to make the initial template from multiple frames
+
+    PARAMETERS
+        image_stack : np.ndarray
+            Input frames of shape (n_frames, Ly, Lx), supporting slice indexing.
+
+        threshold : float
+            Quantile threshold for selecting frames used for template image
+
+        fftdenoise : bool
+            Remove strong period noise (i.e., ripple PMT noise) from the template image
+
+    OUTPUT
+        template : np.ndarray
+            Template image of shape (Ly, Lx)
+
+    """
     reduction_ratio = np.array([16, 16])
     max_iter = 5
 
