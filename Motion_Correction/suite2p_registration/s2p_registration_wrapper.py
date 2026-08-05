@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 from . import s2p_reg_utils as utils
-from .assign_reg_io import assign_reg_io
+from ..io.assign_reg_io import assign_reg_io
 from . import bidiphase as bidi
 from .compute_reference_image import compute_reference_image
 from .register import register_frames, compute_crop, shift_frames_and_write
@@ -29,7 +29,7 @@ def s2p_registration_wrapper(
     align_by_chan2=False,
     save_path=None,
     aspect=1.0,
-    settings=parameters.default_settings(),
+    settings=parameters.default_settings()["Suite2p_settings"],
     save_tif=False,
     downsampled_frames=50,
     device=torch.device("cpu"),
