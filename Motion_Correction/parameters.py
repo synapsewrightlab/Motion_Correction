@@ -384,9 +384,9 @@ SETTINGS = {
             "gui_name": "Rigid template number",
             "type": int,
             "min": 2,
-            "max": 100,
-            "default": 5,
-            "description": "Number of image stacks (files) to estimate template images",
+            "max": 10000,
+            "default": 2000,
+            "description": "Number of image frames to estimate template images",
         },
         "rigid_template_block_size": {
             "gui_name": "Rigid template block size",
