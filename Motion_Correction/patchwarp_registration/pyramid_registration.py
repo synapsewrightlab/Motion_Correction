@@ -1,6 +1,9 @@
 import numpy as np
 import warnings
 
+from scipy.signal import convolve2d
+from scipy.ndimage import shift as subshift
+
 
 def compute_shifts(
     refImg,
@@ -48,11 +51,12 @@ def compute_shifts(
     cmax = np.zeros(nframes)
 
     if rigid_norm_method == "rank":
-        refImg = rank_transform(np.expand_dims(refImg, axis=0))[0]
+        refImg = rank_transform(refImg)
         f_reg = rank_transform(f_reg)
 
     elif rigid_norm_method == "local":
-        raise ("Still need to code this")
+        refImg = imnormalize(refImg, rigid_norm_radius)
+        f_reg = imnormalize(f_reg, rigid_norm_radius)
 
     # Use on the center of the image for calculating shifts
     center_target = get_center(refImg, rigid_template_center_frac)
@@ -78,6 +82,45 @@ def compute_shifts(
         ymax[i] = shift[0]
         xmax[i] = shift[1]
         cmax[i] = score
+
+    return ymax, xmax, cmax
+
+
+def shift_frames(f_reg, yoff, xoff):
+    """
+    Function to shift frames
+
+    PARAMETERS
+        f_reg : np.ndarray
+            Input frames of shape (n_frames, Ly, Lx), supporting slice indexing.
+
+        yoff : np.ndarray
+            1D array of the offsets in the y (row) dimension
+
+        xoff : np.ndarray
+            1D array of the offsets in the x (column) dimension
+
+    OUTPUTS
+        f_correct : np.ndarray
+            Output frames of shape (n_frames, Ly, Lx) after shifts
+
+    """
+    # deal with 2d arrays
+    squeeze_back = f_reg.ndim == 2
+    if squeeze_back:
+        f_reg = f_reg[np.newaxis, :, :]
+
+    f_correct = np.zeros(f_reg.shape).astype(np.float64)
+
+    for i in range(f_reg.shape[0]):
+        f = f_reg.shape[i, :, :]
+        shifted = subshift(f, shift=(yoff[i], xoff[i]), order=3)
+        f_correct[i, :, :] = shifted
+
+    if squeeze_back:
+        f_correct = f_correct[0, :, :]
+
+    return f_correct
 
 
 def bilinear_step(target, source, dy, dx):
@@ -246,10 +289,107 @@ def get_center(img, factor):
 def rank_transform(img_stack):
     """Function to perform rank normalization of images"""
 
+    # deal with 2d arrays
+    squeeze_back = img.ndim == 2
+    if squeeze_back:
+        img = img[np.newaxis, :, :]
+
     result = np.zeros(img_stack.size)
     for i in range(img_stack.size[0]):
         img = img_stack[i, :, :]
         _, _, ic = np.unique(img, return_index=True, return_inverse=True)
         result[i, :, :] = ic.reshape(img.shape)
 
+    if squeeze_back:
+        result = result[0, :, :]
+
     return result
+
+
+def imnormalize(img, radius):
+    """Helper function to perform local normalization of images"""
+
+    # deal with 2d arrays
+    squeeze_back = img.ndim == 2
+    if squeeze_back:
+        img = img[np.newaxis, :, :]
+
+    f = matlab_fspecial_disk(radius)
+
+    n_cells = convolve2d(np.ones(img.shape[1:]), f, mode="same")
+
+    imsm = np.zeros(img.shape, dtype=np.float64)
+    for i in range(img.shape[0]):
+        imsm[i, :, :] = (
+            convolve2d(img[i, :, :].astype(np.float64), f, mode="same") / n_cells
+        )
+
+    imn = img.mean() * img / imsm
+
+    if squeeze_back:
+        imn = imn[0, :, :]
+
+    return imn
+
+
+def matlab_fspecial_disk(radius):
+    """Function to approximate matlabs fspecial('disk') function"""
+    crad = int(np.ceil(radius - 0.5))
+
+    x, y = np.meshgrid(np.arange(-crad, crad + 1), np.arange(-crad, crad + 1))
+    maxxy = np.maximum(np.abs(x), np.abs(y)).astype(float)
+    minxy = np.minimum(np.abs(x), np.abs(y)).astype(float)
+
+    m1 = np.where(
+        radius**2 < (maxxy + 0.5) ** 2 + (minxy - 0.5) ** 2,
+        minxy - 0.5,
+        np.sqrt(np.maximum(radius**2 - (maxxy + 0.5) ** 2, 0)),
+    )
+
+    m2 = np.where(
+        radius**2 > (maxxy - 0.5) ** 2 + (minxy + 0.5) ** 2,
+        minxy + 0.5,
+        np.sqrt(np.maximum(radius**2 - (maxxy + 0.5) ** 2, 0)),
+    )
+
+    a1 = np.arcsin(np.clip(m1 / radius, -1, 1))
+    a2 = np.arcsin(np.clip(m2 / radius, -1, 1))
+    sgrid = (
+        radius**2 * (0.5(a2 - a1) + 0.25 * (np.sin(2 * a2) - np.sin(2 * a1)))
+        - (maxxy - 0.5) * (m2 - m1)
+        + (m1 + minxy + 0.5)
+    )
+
+    cond = (
+        (radius**2 < (maxxy + 0.5) ** 2 + (minxy + 0.5) ** 2)
+        & (radius**2 > (maxxy - 0.5) ** 2 + (minxy - 0.5) ** 2)
+    ) | ((minxy == 0) & (maxxy - 0.5 < radius) & (maxxy + 0.5 >= radius))
+
+    sgrid = sgrid * cond
+    sgrid = sgrid + ((maxxy + 0.5) ** 2 + (minxy + 0.5) ** 2 < radius**2)
+
+    c = crad
+    sgrid[c, c] = min(np.pi * radius**2, np.pi / 2)
+
+    # Edge conditions
+    if crad > 0 and radius > crad - 0.5 and radius**2 < (crad - 0.5) ** 2 + 5:
+        m1v = np.sqrt(radius**2 - (crad - 0.5) ** 2)
+        m1n = m1v / radius
+        sg0 = 2 * (
+            radius**2 * (0.5 * np.arcsin(m1n) + 0.25 * np.sin(2 * np.arcsin(m1n)))
+            - m1v * (crad - 0.5)
+        )
+        sgrid[2 * crad, c] = sg0
+        sgrid[c, 2 * crad] = sg0
+        sgrid[c, 0] = sg0
+        sgrid[0, c] = sg0
+        sgrid[2 * crad - 1, c] -= sg0
+        sgrid[c, 2 * crad - 1] -= sg0
+        sgrid[c, 1] -= sg0
+        sgrid[1, c] -= sg0
+
+    sgrid[c, c] = min(sgrid[c, c], 1)
+
+    sgrid = sgrid / sgrid.sum()
+
+    return sgrid
