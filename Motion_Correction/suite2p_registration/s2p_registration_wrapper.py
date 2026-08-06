@@ -121,7 +121,7 @@ def s2p_registration_wrapper(
     # Compute bidiphase shift
     if compute_bidi:
         bidiphase = bidi.compute(frames)
-        logger.info("Estimated bidiphase offest from data: %d pixels" % bidiphase)
+        logger.info("-- Estimated bidiphase offest from data: %d pixels" % bidiphase)
     else:
         bidiphase = settings["bidiphase"]
 
@@ -132,15 +132,15 @@ def s2p_registration_wrapper(
     if refImg is None:
         t0 = time.time()
         refImg = compute_reference_image(frames, settings=settings, device=device)
-        logger.info("Reference frame, %0.2f sec." % (time.time() - t0))
+        logger.info("-- Reference frame generated, %0.2f sec." % (time.time() - t0))
 
     refImg_orig = refImg.copy()
 
     # Register frames
     for step in range(1 + (settings["two_step_registration"])):
         if step == 1:
-            logger.info("Starting step 2 of two-step registration")
-            logger.info("Making new reference image without badframes")
+            logger.info("- Starting step 2 of two-step registration")
+            logger.info("-- Making new reference image without badframes")
             nsamps = min(n_frames, settings["nimg_init"])
             inds = np.linspace(0, n_frames, 1 + nsamps).astype(np.int64)[:-1]
             inds = inds[~np.isin(inds, np.nonzero(badframes)[0])]
@@ -226,6 +226,9 @@ def s2p_registration_wrapper(
         meanImg_chan2 = None
 
     # Make and save summary video
+    logger.info(
+        f"---- Making the summary tif video downsampled by {downsampled_frames}"
+    )
     make_summary_video(f_align_out, downsample_frames=downsampled_frames)
     if nchannels > 1:
         make_summary_video(f_alt_out, downsample_frames=downsampled_frames)
