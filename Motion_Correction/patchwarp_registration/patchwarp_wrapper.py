@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import time
 
 import logging
 
@@ -89,6 +90,7 @@ def patchwarp_wrapper(
     # Check to run rigid registration
     if settings["do_rigid"]:
         logger.info(f"Performing rigid registration")
+        t_rigid = time.time()
         rigid_outputs = patchwarp_rigid(
             f_align_in=f_align_in,
             f_align_out=f_align_out,
@@ -105,6 +107,9 @@ def patchwarp_wrapper(
             device=torch.device("cpu"),
             tif_root_align=tif_align_out,
             tif_root_alt=tif_alt_out,
+        )
+        logger.info(
+            "-- Rigid registration complete, %0.2f sec." % (time.time() - t_rigid)
         )
     else:
         logger.info(f"Skipping rigid regitration")
