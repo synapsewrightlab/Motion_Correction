@@ -177,7 +177,7 @@ def register_frames(
 
     # Determine number of batches
     n_batches = int(np.ceil(n_frames / batch_size))
-    logger.info(f"Registering {n_frames} frames in {n_batches} batches")
+    logger.info(f"- Registering {n_frames} frames in {n_batches} batches")
     tqdm_out = TqdmToLogger(logger, level=logging.INFO)
 
     for n in trange(n_batches, mininterval=10, file=tqdm_out):
@@ -342,7 +342,7 @@ def shift_frames_and_write(
     yoff1k, xoff1k = None, None
 
     n_batches = int(np.ceil(n_frames / batch_size))
-    logger.info(f"Second channel: Shifting {n_frames} frames in {n_batches} batches")
+    logger.info(f"-- Second channel: Shifting {n_frames} frames in {n_batches} batches")
     tqdm_out = TqdmToLogger(logger, level=logging.INFO)
 
     # Iterate through the batched
