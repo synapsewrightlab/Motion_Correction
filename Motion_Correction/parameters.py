@@ -239,7 +239,7 @@ SETTINGS = {
             "type": int,
             "min": 1,
             "max": np.inf,
-            "default": 100,
+            "default": 500,
             "description": "Number of frames per batch - choose fewer if using GPU and running out of memory.",
         },
         "nonrigid": {
@@ -364,6 +364,14 @@ SETTINGS = {
             "default": True,
             "description": "Whether to perform nonrigid motion correction",
         },
+        "batch_size": {
+            "gui_name": "# of frames per batch",
+            "type": int,
+            "min": 1,
+            "max": np.inf,
+            "default": 500,
+            "description": "Number of frames per batch - choose fewer if using GPU and running out of memory.",
+        },
         "rigid_norm_method": {
             "gui_name": "Rigid norm. method",
             "type": str,
@@ -385,7 +393,7 @@ SETTINGS = {
             "type": int,
             "min": 2,
             "max": 10000,
-            "default": 2000,
+            "default": 1000,
             "description": "Number of image frames to estimate template images",
         },
         "rigid_template_block_size": {
@@ -455,10 +463,10 @@ SETTINGS = {
         "warp_template_stack_num": {
             "gui_name": "Warp template stack num",
             "type": int,
-            "min": 1,
-            "max": 100,
-            "default": 5,
-            "description": "Number of image blocks per imaging session to split for nonrigid correction",
+            "min": 2,
+            "max": 10000,
+            "default": 2000,
+            "description": "Number of image frames per imaging session to split for nonrigid correction",
         },
         "warp_block_size": {
             "gui_name": "Warp block size",
