@@ -39,8 +39,8 @@ def run_motion_correction(db={}, settings={}):
 
     save_path = db["save_path0"]
 
-    logger.info(version("Motion_Correction"))
-    logger.info(f"data_path: {db['data_path']}")
+    logger.info(f"Version : {version('Motion_Correction')}")
+    logger.info(f"Data_path: {db['data_path']}")
 
     # Get file list
     db["input_format"] = db.get("input_format", "tif")
@@ -80,7 +80,7 @@ def run_motion_correction(db={}, settings={}):
         # Run the plane
         reg_outputs = run_plane(db, ops)
         plane_time = time.time() - start_time
-        logger.info("----------- Total %0.2f sec." % plane_time)
+        logger.info("----------- Plane run time, %0.2f sec." % plane_time)
 
     run_time = time.time() - start_time
     logger.info("Registration completed: Total %0.2f sec run time" % run_time)
@@ -163,7 +163,7 @@ def run_plane(database, settings):
         )
 
     # Delete the raw binary files
-    logger.info("Deleting raw binary files")
+    logger.info("--- Deleting raw binary files")
     for key in ["raw_file_chan1", "raw_file_chan2"]:
         if key in database:
             os.remove(database[key])
