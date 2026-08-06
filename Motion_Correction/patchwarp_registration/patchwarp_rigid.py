@@ -1,9 +1,14 @@
+import os
+import time
+
 import numpy as np
 import torch
 
 import logging
 
-from .make_template import make_template
+from . import patchwarp_utils as utils
+from .make_reference_image import make_reference_image
+from ..io import binary
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +19,7 @@ def patchwarp_rigid(
     f_alt_in,
     f_alt_out,
     n_ch,
+    batch_size,
     rigid_norm_method,
     rigid_norm_radius,
     rigid_template_block_size,
@@ -46,6 +52,9 @@ def patchwarp_rigid(
 
         n_ch : int
             Number of channels being registered
+
+        batch_size : int
+            Number of frames per batch - choose fewer if using GPU and running out of memory.
 
         rigid_norm_method : str
             Normalization method. Can be 'rank' or 'local'
@@ -89,23 +98,70 @@ def patchwarp_rigid(
     # Check there are enough frames to estimate the reference image
     if nframes < rigid_template_tiffstack_num:
         logger.info(
-            f"rigid_template_tiffstack_num is larger than number of image frames"
+            f"WARNING: Rigid_template_tiffstack_num is larger than number of image frames"
         )
         rigid_template_tiffstack_num = nframes
         logger.info(
-            f"rigid_template_tiffstack_num has been changed to {rigid_template_tiffstack_num}"
+            f"-------- Rigid_template_tiffstack_num has been changed to {rigid_template_tiffstack_num}"
         )
 
-    # Find middle file that we will move out from to define reference
-    middle_file_id = int(nframes / 2)
+    # Set up the blocks
+    ## Force odd number of blocks
+    if rigid_template_block_size % 2 == 0:
+        rigid_template_block_size += 1
 
-    # Make initial reference image
-    logger.info(f"Making Reference Image from frames centered on {middle_file_id}")
-    start = middle_file_id - int((rigid_template_tiffstack_num - 1) / 2)
-    end = middle_file_id + int(rigid_template_tiffstack_num / 2)
-    frames = f_align_in[start:end]
-    reference_image = make_template(
-        frames, rigid_template_threshold, rigid_template_fftdenoise
+    # Get block Ids
+    block_idxs = utils.get_block_ids(nframes, rigid_template_block_size)
+    ordered_blocks = utils.reorder_blocks(block_idxs)
+
+    # Make the initial template from central block
+    initial_frames = ordered_blocks[0]
+    # Get the central frames
+    center_frame = (initial_frames[0] + initial_frames[1]) // 2
+    logger.info(
+        f"Making initial reference image from frames centered on {center_frame}"
     )
+    t_ref = time.time()
+    initial_start = center_frame - int((rigid_template_tiffstack_num - 1) / 2)
+    initial_end = center_frame + int(rigid_template_tiffstack_num / 2)
 
-    # Register frames to template before recalculating template
+    # make the initial reference image
+    initial_frames = f_align_in[initial_start:initial_end]
+    initial_reference_image = make_reference_image(
+        initial_frames,
+        threshold=rigid_template_threshold,
+        fftdenoise=rigid_template_fftdenoise,
+        rigid_norm_method=rigid_norm_method,
+        rigid_norm_radius=rigid_norm_radius,
+        rigid_template_center_frac=rigid_template_center_frac,
+    )
+    logger.info("-- Reference image generated, %0.2f sec." % (time.time() - t_ref))
+
+    # Iterate through the blocks
+    for iblock, block in enumerate(ordered_blocks):
+        # Use the initial reference for the first block
+        if iblock == 0:
+            reference_image = initial_reference_image
+        # Use previous block's frames for reference image if second block
+        elif iblock == 1:
+            ## Get the previous frames from the last block to make the reference
+            ref_end = ordered_blocks[iblock - 1][1]
+            ref_start = ref_end - rigid_template_tiffstack_num - 1
+            reference_image = np.nanmean(f_align_out[ref_start, ref_end], axis=0)
+        ## Go two blocks back to get the adjacent blocks frames for reference
+        else:
+            ## Check if block is going backwards from the center
+            if iblock % 2 == 0:
+                ref_start = ordered_blocks[iblock - 2][0]
+                ref_end = ref_start + rigid_template_tiffstack_num - 1
+                reference_image = np.nanmean(f_align_out[ref_start, ref_end], axis=0)
+            else:
+                ref_end = ordered_blocks[iblock - 2][1]
+                ref_start = ref_end - rigid_template_tiffstack_num - 1
+                reference_image = np.nanmean(f_align_out[ref_start, ref_end], axis=0)
+
+        # Set up the batch idxs
+        start = block[0]
+        end = block[1]
+        step = batch_size
+        batch_idxs = [(i, min(i + step, end)) for i in range(start, end, step)]
