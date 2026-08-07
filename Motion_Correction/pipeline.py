@@ -73,37 +73,39 @@ def pipeline(
             device=device,
         )
 
-        # Save outputs
-        np.save(os.path.join(save_path, "reg_outputs.npy"), reg_outputs)
-
-    elif algorithm == "PatchWarp":
-        raise ValueError("Currently only works with Suite2p registration")
-
-    # Registration metrics later from suite2p
-    logger.info(f"-- Performing registration metrics calculations")
-    out_chan1 = get_pc_metrics(
-        f_reg=f_reg_chan1,
-        yrange=reg_outputs["yrange"],
-        xrange=reg_outputs["xrange"],
-        settings=settings["Suite2p_settings"],
-    )
-
-    reg_outputs["tPC_chan1"], reg_outputs["regPC_chan1"], reg_outputs["regDX_chan1"] = (
-        out_chan1
-    )
-
-    if f_reg_chan2 is not None:
-        out_chan2 = get_pc_metrics(
-            f_reg=f_reg_chan2,
+        # Registration metrics later from suite2p
+        logger.info(f"-- Performing registration metrics calculations")
+        out_chan1 = get_pc_metrics(
+            f_reg=f_reg_chan1,
             yrange=reg_outputs["yrange"],
             xrange=reg_outputs["xrange"],
             settings=settings["Suite2p_settings"],
         )
 
         (
-            reg_outputs["tPC_chan2"],
-            reg_outputs["regPC_chan2"],
-            reg_outputs["regDX_chan2"],
-        ) = out_chan2
+            reg_outputs["tPC_chan1"],
+            reg_outputs["regPC_chan1"],
+            reg_outputs["regDX_chan1"],
+        ) = out_chan1
+
+        if f_reg_chan2 is not None:
+            out_chan2 = get_pc_metrics(
+                f_reg=f_reg_chan2,
+                yrange=reg_outputs["yrange"],
+                xrange=reg_outputs["xrange"],
+                settings=settings["Suite2p_settings"],
+            )
+
+            (
+                reg_outputs["tPC_chan2"],
+                reg_outputs["regPC_chan2"],
+                reg_outputs["regDX_chan2"],
+            ) = out_chan2
+
+        # Save outputs
+        np.save(os.path.join(save_path, "reg_outputs.npy"), reg_outputs)
+
+    elif algorithm == "PatchWarp":
+        raise ValueError("Currently only works with Suite2p registration")
 
     return reg_outputs
