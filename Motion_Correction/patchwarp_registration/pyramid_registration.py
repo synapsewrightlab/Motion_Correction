@@ -108,6 +108,8 @@ def pyramid_parallel(args):
 
     # Apply the shifts
     corrected = shift_frames(batch_frames, yoff=yoff, xoff=xoff)
+    meanImg = np.nanmean(corrected, axis=0)
+    meanImg_alt = None
 
     # Write to disk
     f_out[start:end] = corrected
@@ -136,13 +138,14 @@ def pyramid_parallel(args):
 
         # Shift frames
         corrected_alt = shift_frames(alt_frames, yoff=yoff, xoff=xoff)
+        meanImg_alt = np.nanmean(corrected_alt, axis=0)
         f_out_alt[start:end] = corrected_alt
         f_out_alt.file.flush()
 
         f_in_alt.close()
         f_out_alt.close()
 
-    return yoff, xoff, corrXY
+    return yoff, xoff, corrXY, meanImg, meanImg_alt
 
 
 def compute_shifts(
