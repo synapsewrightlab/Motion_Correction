@@ -1,4 +1,7 @@
 import numpy as np
+import cv2
+
+from ..suite2p_registration import cellpose_transforms as transforms
 
 
 def get_block_ids(arr_len, block_num):
@@ -57,3 +60,32 @@ def calc_memmap_mean(file, frame_range, batch_size):
     mean = np.nanmean(mean_list, axis=0)
 
     return mean
+
+
+def highpass_mean_image(I, aspect=1.0):
+    """
+    Compute an enhanced mean image by applying a high-pass Gaussian filter.
+
+    Subtracts low-frequency content using a Gaussian kernel (sigma=3 in each axis,
+    scaled by `aspect` in y), then rescales the result to [0, 1] using the 1st and
+    99th percentiles.
+
+    PARAMETERS
+        I : numpy.ndarray
+            2D mean image of shape (Ly, Lx).
+
+        aspect : float, optional (default 1.0)
+            Aspect ratio correction factor. Values != 1.0 scale the Gaussian sigma along
+            the y-axis by this factor.
+
+    OUTPUT
+        img_filt : numpy.ndarray
+            High-pass filtered image of shape (Ly, Lx), clipped to [0, 1].
+    """
+    Ly, Lx = I.shape
+    img_filt = cv2.resize(I, (Lx, int(np.round(Ly * aspect))))
+    img_filt = transforms.normalize_img(img_filt[..., np.newaxis], sharpen_radius=3)
+    img_filt = cv2.resize(img_filt.squeeze(), (Lx, Ly))
+    img_filt = np.clip(img_filt, 0, 1)
+
+    return img_filt
