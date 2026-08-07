@@ -3,12 +3,13 @@ import time
 
 import numpy as np
 import torch
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import logging
 
 from . import patchwarp_utils as utils
 from .make_reference_image import make_reference_image
-from ..io import binary
+from .pyramid_registration import pyramid_parallel
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +138,11 @@ def patchwarp_rigid(
     )
     logger.info("-- Reference image generated, %0.2f sec." % (time.time() - t_ref))
 
+    # Get all the offsets
+    xoff = np.zeors(nframes)
+    yoff = np.zeros(nframes)
+    corrXY = np.zeros(nframes)
+
     # Iterate through the blocks
     for iblock, block in enumerate(ordered_blocks):
         # Use the initial reference for the first block
@@ -165,3 +171,60 @@ def patchwarp_rigid(
         end = block[1]
         step = batch_size
         batch_idxs = [(i, min(i + step, end)) for i in range(start, end, step)]
+
+        # Prepare to parallize across batches
+        ## Grab relevant memmap info
+        input_path = f_align_in.filename
+        input_shape = f_align_in.shape
+        output_path = f_align_out.filename
+        output_shape = f_align_out.shape
+
+        if n_ch > 1:
+            input_path_alt = f_alt_in.filename
+            input_shape_alt = f_alt_in.shape
+            output_path_alt = f_alt_out.filename
+            output_shape_alt = f_alt_out.shape
+        else:
+            input_path_alt = None
+            input_shape_alt = None
+            output_path_alt = None
+            output_shape_alt = None
+
+        # Change if you want to max out cpus
+        n_workers = os.cpu_count() - 2
+        pyramid_args = [
+            rigid_norm_method,
+            rigid_norm_radius,
+            rigid_template_center_frac,
+        ]
+
+        jobs = [
+            (
+                input_path,
+                output_path,
+                input_path_alt,
+                output_path_alt,
+                input_shape,
+                output_shape,
+                input_shape_alt,
+                output_shape_alt,
+                start,
+                end,
+                reference_image,
+                pyramid_args,
+            )
+            for start, end in batch_idxs
+        ]
+
+        logger.info(
+            f"--- Performing pyramid registration on block {iblock} with {n_workers} workers"
+        )
+
+        with ProcessPoolExecutor(max_workers=n_workers) as executor:
+            futures = {executor.submit(pyramid_parallel, job): job for job in jobs}
+            for future in as_completed(futures):
+                y, x, c = future.result()
+                logger.info(f"------ Finished with frames {start}-{end}")
+                xoff[start:end] = x
+                yoff[start:end] = y
+                corrXY[start:end] = c
