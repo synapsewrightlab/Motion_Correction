@@ -20,7 +20,6 @@ def patchwarp_wrapper(
     refImg=None,
     align_by_chan2=False,
     save_path=None,
-    aspect=1.0,
     settings=parameters.default_settings()["Patchwarp_settings"],
     save_tif=False,
     downsampled_frames=50,
@@ -54,9 +53,6 @@ def patchwarp_wrapper(
 
         save_path: str or None
             Base directory for saving registered tiff files
-
-        aspect: float
-            Pixel aspect ratio used for computing the enhanced mean image
 
         settings: dict
             Registration settings dictionary
@@ -96,6 +92,7 @@ def patchwarp_wrapper(
             f_align_out=f_align_out,
             f_alt_in=f_alt_in,
             f_alt_out=f_alt_out,
+            refImg=refImg,
             n_ch=nchannels,
             rigid_norm_method=settings["rigid_norm_method"],
             rigid_norm_radius=settings["rigid_norm_radius"],
@@ -113,3 +110,15 @@ def patchwarp_wrapper(
         )
     else:
         logger.info(f"Skipping rigid regitration")
+        rigid_outputs = {
+            "refImg": None,
+            "meanImg": None,
+            "meanImg_chan2": None,
+            "yoff": None,
+            "xoff": None,
+            "corrXY": None,
+            "yrange": None,
+            "xrange": None,
+        }
+
+    # Check to run non-rigid registration
