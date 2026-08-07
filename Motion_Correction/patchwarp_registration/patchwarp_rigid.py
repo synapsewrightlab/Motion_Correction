@@ -19,6 +19,7 @@ def patchwarp_rigid(
     f_align_out,
     f_alt_in,
     f_alt_out,
+    pre_refImg,
     n_ch,
     batch_size,
     rigid_norm_method,
@@ -28,9 +29,6 @@ def patchwarp_rigid(
     rigid_template_tiffstack_num,
     rigid_template_center_frac,
     rigid_template_fftdenoise,
-    device=torch.device("cpu"),
-    tif_root_align=None,
-    tif_root_atl=None,
 ):
     """
     Function to perform rigid motion correction. Based on the method developed by Akinori Mitani
@@ -47,9 +45,12 @@ def patchwarp_rigid(
             Input frames of shape (n_frames, Ly, Lx), supporting slice indexing.
             For the other channel not used to compute shifts
 
-        f_alt_out: np.ndarray or BinaryFile
+        f_alt_out : np.ndarray or BinaryFile
             Registered functional channel frames of shape (n_frmaes, Ly, Lx)
             For the other channel not used to compute shifts
+
+        pre_refImg : np.ndarray
+            Optional: Pre-computed reference image (Ly, Lx)
 
         n_ch : int
             Number of channels being registered
@@ -78,17 +79,6 @@ def patchwarp_rigid(
         rigid_template_fftdenoise : bool
             Remove strong period noise (i.e., ripple PMT noise) from the template image
 
-        device: torch.device
-            Torch device from computation
-
-        tif_root_align : str or None
-            If provided, save registered frames as tiffs in this directory.
-            For the align channel
-
-        tif_root_alt : str or None
-            If provided, save registered frames as tiffs in this directory.
-            For the other channel channel
-
     OUTPUT
 
 
@@ -116,35 +106,45 @@ def patchwarp_rigid(
     ordered_blocks = utils.reorder_blocks(block_idxs)
 
     # Make the initial template from central block
-    initial_frames = ordered_blocks[0]
-    # Get the central frames
-    center_frame = (initial_frames[0] + initial_frames[1]) // 2
-    logger.info(
-        f"Making initial reference image from frames centered on {center_frame}"
-    )
-    t_ref = time.time()
-    initial_start = center_frame - int((rigid_template_tiffstack_num - 1) / 2)
-    initial_end = center_frame + int(rigid_template_tiffstack_num / 2)
+    if pre_refImg is None:
+        initial_frames = ordered_blocks[0]
+        # Get the central frames
+        center_frame = (initial_frames[0] + initial_frames[1]) // 2
+        logger.info(
+            f"Making initial reference image from frames centered on {center_frame}"
+        )
+        t_ref = time.time()
+        initial_start = center_frame - int((rigid_template_tiffstack_num - 1) / 2)
+        initial_end = center_frame + int(rigid_template_tiffstack_num / 2)
 
-    # make the initial reference image
-    initial_frames = f_align_in[initial_start:initial_end]
-    initial_reference_image = make_reference_image(
-        initial_frames,
-        threshold=rigid_template_threshold,
-        fftdenoise=rigid_template_fftdenoise,
-        rigid_norm_method=rigid_norm_method,
-        rigid_norm_radius=rigid_norm_radius,
-        rigid_template_center_frac=rigid_template_center_frac,
-    )
-    logger.info("-- Reference image generated, %0.2f sec." % (time.time() - t_ref))
+        # make the initial reference image
+        initial_frames = f_align_in[initial_start:initial_end]
+        initial_reference_image = make_reference_image(
+            initial_frames,
+            threshold=rigid_template_threshold,
+            fftdenoise=rigid_template_fftdenoise,
+            rigid_norm_method=rigid_norm_method,
+            rigid_norm_radius=rigid_norm_radius,
+            rigid_template_center_frac=rigid_template_center_frac,
+        )
+        logger.info("-- Reference image generated, %0.2f sec." % (time.time() - t_ref))
+    else:
+        logger.info("Using pre-computed reference image")
+        initial_reference_image = pre_refImg
 
     # Get all the offsets
     xoff = np.zeors(nframes)
     yoff = np.zeros(nframes)
     corrXY = np.zeros(nframes)
 
+    # Store copies of reference images and mean aligned images
+    refImg = [None for _ in range(len(ordered_blocks))]
+    meanImg = [None for _ in range(len(ordered_blocks))]
+    meanImg_chan2 = [None for _ in range(len(ordered_blocks))]
+
     # Iterate through the blocks
     for iblock, block in enumerate(ordered_blocks):
+        block_time = time.time()
         # Use the initial reference for the first block
         if iblock == 0:
             reference_image = initial_reference_image
@@ -165,6 +165,9 @@ def patchwarp_rigid(
                 ref_end = ordered_blocks[iblock - 2][1]
                 ref_start = ref_end - rigid_template_tiffstack_num - 1
                 reference_image = np.nanmean(f_align_out[ref_start, ref_end], axis=0)
+
+        orig_block_idx = block_idxs.index(block)
+        refImg[orig_block_idx] = reference_image
 
         # Set up the batch idxs
         start = block[0]
@@ -220,11 +223,59 @@ def patchwarp_rigid(
             f"--- Performing pyramid registration on block {iblock} with {n_workers} workers"
         )
 
+        temp_mean = []
+        temp_mean_alt = []
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
             futures = {executor.submit(pyramid_parallel, job): job for job in jobs}
             for future in as_completed(futures):
-                y, x, c = future.result()
+                y, x, c, mean, mean_alt = future.result()
                 logger.info(f"------ Finished with frames {start}-{end}")
                 xoff[start:end] = x
                 yoff[start:end] = y
                 corrXY[start:end] = c
+                temp_mean.append(mean)
+                temp_mean_alt.append(mean_alt)
+
+        block_mean = np.nanmean(temp_mean, axis=0)
+        if temp_mean_alt[0]:
+            block_mean_alt = np.nanmean(temp_mean_alt, axis=0)
+        else:
+            block_mean_alt = None
+
+        meanImg[orig_block_idx] = block_mean
+        meanImg_chan2[orig_block_idx] = block_mean_alt
+
+        logger.info(
+            f"--- Block {iblock} registration complete, {time.time() - block_time:.2f} sec."
+        )
+
+    # Calculate yrange and xrange
+    ymin = np.ceil(np.abs(yoff).max())
+    xmin = np.ceil(np.abs(xoff).max())
+    ymax = Ly - ymin
+    xmax = Lx - ymax
+
+    yrange = [int(ymin), int(ymax)]
+    xrange = [int(xmin), int(xmax)]
+
+    # Normalize and reshape the reference and mean images
+    refImg = np.array([utils.highpass_mean_image(x, 1.0) for x in refImg])
+    meanImg = np.array([utils.highpass_mean_image(x, 1.0) for x in meanImg])
+    if n_ch > 1:
+        meanImg_chan2 = np.array(
+            [utils.highpass_mean_image(x, 1.0) for x in meanImg_chan2]
+        )
+
+    # Prepare the registration outputs
+    rigid_outputs = {
+        "refImg": refImg,
+        "meanImg": meanImg,
+        "meanImg_chan2": meanImg_chan2,
+        "yoff": yoff,
+        "xoff": xoff,
+        "corrXY": corrXY,
+        "yrange": yrange,
+        "xrange": xrange,
+    }
+
+    return rigid_outputs
