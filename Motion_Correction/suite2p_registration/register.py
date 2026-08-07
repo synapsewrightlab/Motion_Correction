@@ -253,7 +253,7 @@ def register_frames(
             # Save aligned image as tif if specified
             if tif_root:
                 bname = Path(f_align_out.filename).stem
-                fname = os.path.join(tif_root, f"{bname}_{n}.tif")
+                fname = os.path.join(tif_root, f"{bname}_{n+1:04d}.tif")
                 save_tiff(mov=frames, fname=fname)
 
     if upsample_meanImg:
