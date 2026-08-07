@@ -4,6 +4,146 @@ import warnings
 from scipy.signal import convolve2d
 from scipy.ndimage import shift as subshift
 
+from ..io import binary
+
+
+def pyramid_parallel(args):
+    """
+    Function to perform pyramid registration across parallelized chunks
+
+    PARAMETERS
+        args : tuple
+            Tuple containing the following variables
+
+            input_path : str
+                File path to the f_align_in file
+
+            output_path : str
+                File path to the f_align_out file
+
+            input_path_alt : str
+                Optional: File path to the f_alt_in file
+
+            output_path_alt : str
+                Optional: File path to the f_alt_out file
+
+            input_shape : tuple
+                File size (nframes, Ly, Lx)
+
+            output_shape : tuple
+                File size (nframes, Ly, Lx)
+
+            input_shape_alt : tuple
+                Optional: File size (nframes, Ly, Lx)
+
+            output_shape_alt : tuple
+                Optional: File size (nframes, Ly, Lx)
+
+            start : int
+                Starting frame idx of the chunk to be processed
+
+            end : int
+                Ending frame idx of the chunk to be processed
+
+            reference_image : np.ndarray
+                2D array (Ly, Lx) of the reference image
+
+    OUTPUTS
+         ymax : np.ndarray
+            1-D integer array of length N with the y (row) shift for each frame that maximizes the
+            phase-correlation.
+
+        xmax : np.ndarray
+            1-D integer array of length N with the x (column) shift for each frame that maximizes the
+            phase-correlation.
+
+        cmax : np.ndarray
+            1-D array of length N containing the maximum phase-correlation value found for each frame.
+
+    """
+    # Upack the arguments
+    (
+        input_path,
+        output_path,
+        input_path_alt,
+        output_path_alt,
+        input_shape,
+        output_shape,
+        input_shape_alt,
+        output_shape_alt,
+        start,
+        end,
+        reference_image,
+        pyramid_args,
+    ) = args
+
+    rigid_norm_method, rigid_norm_radius, rigid_template_center_frac = pyramid_args
+
+    # Create memmaps to relevant file
+    f_in = binary.BinaryFile(
+        Ly=input_shape[1],
+        Lx=input_shape[2],
+        filename=input_path,
+        n_frames=input_shape[0],
+        write=False,
+    )
+    f_out = binary.BinaryFile(
+        Ly=output_shape[1],
+        Lx=output_shape[2],
+        filename=output_path,
+        n_frames=output_shape[0],
+        write=True,
+    )
+
+    batch_frames = f_in[start:end]
+
+    # Compute the shifts
+    yoff, xoff, corrXY = compute_shifts(
+        reference_image,
+        batch_frames,
+        rigid_norm_method,
+        rigid_norm_radius,
+        rigid_template_center_frac,
+    )
+
+    # Apply the shifts
+    corrected = shift_frames(batch_frames, yoff=yoff, xoff=xoff)
+
+    # Write to disk
+    f_out[start:end] = corrected
+    f_out.file.flush()
+
+    f_in.close()
+    f_out.close()
+
+    if input_path_alt:
+        f_in_alt = binary.BinaryFile(
+            Ly=input_shape_alt[1],
+            Lx=input_shape_alt[2],
+            filename=input_path_alt,
+            n_frames=input_shape_alt[0],
+            write=False,
+        )
+        f_out_alt = binary.BinaryFile(
+            Ly=output_shape_alt[1],
+            Lx=output_shape_alt[2],
+            filename=output_path_alt,
+            n_frames=output_shape_alt[0],
+            write=True,
+        )
+
+        alt_frames = f_in_alt[start:end]
+
+        # Shift frames
+        corrected_alt = shift_frames(alt_frames, yoff=yoff, xoff=xoff)
+        f_out_alt[start:end] = corrected_alt
+        f_out_alt.file.flush()
+
+        f_in_alt.close()
+        f_out_alt.close()
+
+    return yoff, xoff, corrXY
+
 
 def compute_shifts(
     refImg,
