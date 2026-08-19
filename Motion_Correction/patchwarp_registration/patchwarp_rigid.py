@@ -96,6 +96,12 @@ def patchwarp_rigid(
             f"-------- Rigid_template_tiffstack_num has been changed to {rigid_template_tiffstack_num}"
         )
 
+    if rigid_template_fftdenoise:
+        rigid_norm_method = "local"
+        logger.info(
+            f"-------- Rigid_norm_method changed to 'local' because fftdnoise is true"
+        )
+
     # Set up the blocks
     ## Force odd number of blocks
     if rigid_template_block_size % 2 == 0:
