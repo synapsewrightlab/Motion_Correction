@@ -96,7 +96,7 @@ def use_sktiff_reader(tiff_filename, batch_size):
         return True
 
 
-def read_tiff(file, tif, Ltif, ix, batch_size, use_sktiff):
+def read_tiff(file, tif, Ltif, ix, batch_size, use_sktiff, force_square=False):
     """
     Read a batch of frames from an open TIFF file starting at index 'ix'
 
@@ -152,6 +152,9 @@ def read_tiff(file, tif, Ltif, ix, batch_size, use_sktiff):
     if im.shape[0] > nfr:
         im = im[:nfr, :, :]
 
+    if force_square:
+        im = pad_tif(im)
+
     return im
 
 
@@ -189,6 +192,8 @@ def tiff_to_binary(databases, settings, reg_file, reg_file_chan2):
     """
     start_time = time.time()
 
+    force_square = databases[0]["force_square"]
+
     files = databases[0]["file_list"]
     first_files = databases[0]["first_files"]
 
@@ -221,7 +226,7 @@ def tiff_to_binary(databases, settings, reg_file, reg_file_chan2):
         ix = 0
         while 1:
             # Read in the current frame image
-            im = read_tiff(file, tif, Ltif, ix, batch_size, use_sktiff)
+            im = read_tiff(file, tif, Ltif, ix, batch_size, use_sktiff, force_square)
             # Break loop if the end of the tiff file
             if im is None:
                 break
@@ -370,6 +375,8 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
     """
     start_time = time.time()
 
+    force_square = databases[0]["force_square"]
+
     nplanes = databases[0]["nplanes"]
     nchannels = databases[0]["nchannels"]
 
@@ -443,6 +450,8 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
             if im.dtype.type == np.uint16:
                 im = im // 2
             im = im.astype(np.int16)
+            if force_square:
+                im = pad_tif(im)
 
             # write to binary
             databases[ip]["nframes"] += 1
@@ -455,7 +464,9 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
             # keep track of the plane identity of the first frame (channel identity is assumed always 0)
             ix = 0
             while 1:
-                im = read_tiff(file, tif, Ltif, ix, batch_size, use_sktiff)
+                im = read_tiff(
+                    file, tif, Ltif, ix, batch_size, use_sktiff, force_square
+                )
                 if im is None:
                     break
                 nframes = im.shape[0]
@@ -484,13 +495,17 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
                 if im.dtype.type == np.uint16:
                     im = im // 2
                 im = im.astype(np.int16)
+                if force_square:
+                    im = pad_tif(im)
                 databases[ip]["meanImg_chan2"] += im.astype(np.float32)
                 reg_file_chan2[ip].write(bytearray(im))
             else:
                 tif, Ltif = open_tiff(file, not HAS_SCANIMAGE)
                 ix = 0
                 while 1:
-                    im = read_tiff(file, tif, Ltif, ix, batch_size, use_sktiff)
+                    im = read_tiff(
+                        file, tif, Ltif, ix, batch_size, use_sktiff, force_square
+                    )
                     if im is None:
                         break
                     nframes = im.shape[0]
@@ -516,3 +531,30 @@ def ome_to_binary(databases, settings, reg_file, reg_file_chan2):
         np.save(db["settings_path"], settings)
 
     return databases
+
+
+def pad_tif(img):
+    """Helper function to pad images to fit certain aspect ratio"""
+
+    # Get last two dimensions safely
+    h, w = img.shape[-2], img.shape[-1]
+    target_size = max(h, w)
+
+    # Calculate height padding
+    dh = target_size - h
+    pad_h_before = dh // 2
+    pad_h_after = dh - pad_h_before
+
+    # Calculate width padding
+    dw = target_size - w
+    pad_w_before = dw // 2
+    pad_w_after = dw - pad_w_before
+
+    # Start with height and width padding
+    pad_width = [(pad_h_before, pad_h_after), (pad_w_before, pad_w_after)]
+
+    # Prepend (0, 0) for each leading dimension (e.g., nframes)
+    while len(pad_width) < img.ndim:
+        pad_width.insert(0, (0, 0))
+
+    return np.pad(img, pad_width=pad_width, mode="constant", constant_values=0)
