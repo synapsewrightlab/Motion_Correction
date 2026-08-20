@@ -121,11 +121,11 @@ def run_plane(database, settings):
         logger.warning("WARNING: Number of frames < 200, unpredictable behavior")
 
     # Get the binary file paths
-    raw_file_chan1 = database["raw_file_chan1"]
-    reg_file_chan1 = database["reg_file_chan1"]
+    raw_file_ch1 = database["raw_file_ch1"]
+    reg_file_ch1 = database["reg_file_ch1"]
     two_ch = database["nchannels"] > 1
-    raw_file_chan2 = database.get("raw_file_chan2", None)
-    reg_file_chan2 = database.get("reg_file_chan2", None)
+    raw_file_ch2 = database.get("raw_file_ch2", None)
+    reg_file_ch2 = database.get("reg_file_ch2", None)
 
     # Get the shape of the binary files
     n_frames, Ly, Lx = database["nframes"], database["Ly"], database["Lx"]
@@ -133,18 +133,18 @@ def run_plane(database, settings):
     null = contextlib.nullcontext()
     # Load in the binary files
     with binary.BinaryFile(
-        Ly=Ly, Lx=Lx, filename=raw_file_chan1, n_frames=n_frames, write=False
+        Ly=Ly, Lx=Lx, filename=raw_file_ch1, n_frames=n_frames, write=False
     ) as f_raw_chan1, binary.BinaryFile(
-        Ly=Ly, Lx=Lx, filename=reg_file_chan1, n_frames=n_frames, write=True
+        Ly=Ly, Lx=Lx, filename=reg_file_ch1, n_frames=n_frames, write=True
     ) as f_reg_chan1, (
         binary.BinaryFile(
-            Ly=Ly, Lx=Lx, filename=raw_file_chan2, n_frames=n_frames, write=False
+            Ly=Ly, Lx=Lx, filename=raw_file_ch2, n_frames=n_frames, write=False
         )
         if two_ch
         else null
     ) as f_raw_chan2, (
         binary.BinaryFile(
-            Ly=Ly, Lx=Lx, filename=reg_file_chan2, n_frames=n_frames, write=True
+            Ly=Ly, Lx=Lx, filename=reg_file_ch2, n_frames=n_frames, write=True
         )
         if two_ch
         else null
@@ -164,7 +164,7 @@ def run_plane(database, settings):
 
     # Delete the raw binary files
     logger.info("--- Deleting raw binary files")
-    for key in ["raw_file_chan1", "raw_file_chan2"]:
+    for key in ["raw_file_ch1", "raw_file_ch2"]:
         if key in database:
             os.remove(database[key])
 
