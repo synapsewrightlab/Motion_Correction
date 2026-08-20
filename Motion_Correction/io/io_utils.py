@@ -167,6 +167,8 @@ def init_database(db0):
     iplane = db0.get("iplane", np.arange(0, nplanes))
     has_lines = False
 
+    base_name = "_".join(db0["file_list"][0].split("_")[:2])
+
     # Deal with multiple rois if specified
     if "lines" in db0 and db0["lines"] is not None and len(db0["lines"]) > 0:
         nrois = len(db0["lines"])
@@ -209,26 +211,28 @@ def init_database(db0):
         db["settings_path"] = os.path.join(db["save_path"], "settings.npy")
         db["db_path"] = os.path.join(db["save_path"], "db.npy")
 
-        db["save_path_chan1"] = os.path.join(db["save_path"], "Ch1")
-        db["raw_file_chan1"] = os.path.join(fast_disk, "raw_chan1.bin")
-        db["reg_file_chan1"] = os.path.join(db["save_path_chan1"], "aligned_chan1.bin")
+        db["save_path_ch1"] = os.path.join(db["save_path"], "Ch1")
+        db["raw_file_ch1"] = os.path.join(fast_disk, "raw_ch1.bin")
+        db["reg_file_ch1"] = os.path.join(
+            db["save_path_ch1"], f"{base_name}_aligned_ch1.bin"
+        )
 
         if has_lines:
             db["lines"], db["dy"], db["dx"] = lines[j], dy[j], dx[j]
             db["iroi"] = iroi[j]
         db["iplane"] = iplane[j]
         if nchannels > 1:
-            db["save_path_chan2"] = os.path.join(db["save_path"], "Ch2")
-            db["raw_file_chan2"] = os.path.join(fast_disk, "raw_chan2.bin")
-            db["reg_file_chan2"] = os.path.join(
-                db["save_path_chan2"], "aligned_chan2.bin"
+            db["save_path_ch2"] = os.path.join(db["save_path"], "Ch2")
+            db["raw_file_ch2"] = os.path.join(fast_disk, "raw_ch2.bin")
+            db["reg_file_ch2"] = os.path.join(
+                db["save_path_ch2"], f"{base_name}_aligned_ch2.bin"
             )
 
         # Make sure paths exist
         os.makedirs(db["fast_disk"], exist_ok=True)
-        os.makedirs(db["save_path_chan1"], exist_ok=True)
+        os.makedirs(db["save_path_ch1"], exist_ok=True)
         if nchannels > 1:
-            os.makedirs(db["save_path_chan2"], exist_ok=True)
+            os.makedirs(db["save_path_ch2"], exist_ok=True)
         database_list.append(db)
 
     return database_list
