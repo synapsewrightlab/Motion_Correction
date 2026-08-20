@@ -4,7 +4,7 @@ import time
 
 import logging
 
-from .patchwarp_rigid import patchwarp_rigid
+from .patchwarp_rigid_pyramid import patchwarp_rigid_pyramid
 from ..io.assign_reg_io import assign_reg_io
 
 logger = logging.getLogger(__name__)
@@ -87,24 +87,28 @@ def patchwarp_wrapper(
     if settings["do_rigid"]:
         logger.info(f"Performing rigid registration")
         t_rigid = time.time()
-        rigid_outputs = patchwarp_rigid(
-            f_align_in=f_align_in,
-            f_align_out=f_align_out,
-            f_alt_in=f_alt_in,
-            f_alt_out=f_alt_out,
-            refImg=refImg,
-            n_ch=nchannels,
-            rigid_norm_method=settings["rigid_norm_method"],
-            rigid_norm_radius=settings["rigid_norm_radius"],
-            rigid_template_block_size=settings["rigid_template_block_size"],
-            rigid_template_threshold=settings["rigid_template_threshold"],
-            rigid_template_tiffstack_num=settings["rigid_template_tiffstack_num"],
-            rigid_template_center_frac=settings["rigid_template_center_frac"],
-            rigid_template_fftdenoise=settings["rigid_template_fftdenoise"],
-            device=torch.device("cpu"),
-            tif_root_align=tif_align_out,
-            tif_root_alt=tif_alt_out,
-        )
+        rigid_method = settings["rigid_method"]
+        if rigid_method == "pyramid":
+            logger.info("NOTE: Performing pyaramid based rigid registration")
+            rigid_outputs = patchwarp_rigid_pyramid(
+                f_align_in=f_align_in,
+                f_align_out=f_align_out,
+                f_alt_in=f_alt_in,
+                f_alt_out=f_alt_out,
+                refImg=refImg,
+                n_ch=nchannels,
+                batch_size=settings["batch_size"],
+                rigid_template_block_size=settings["rigid_template_block_size"],
+                rigid_template_file_num=settings["rigid_template_file_num"],
+                pyramid_norm_method=settings["pyramid_norm_method"],
+                pyramid_norm_radius=settings["pyramid_norm_radius"],
+                pyramid_template_threshold=settings["pyramid_template_threshold"],
+                pyramid_template_center_frac=settings["pyramid_template_center_frac"],
+                pyramid_template_fftdenoise=settings["pyramid_template_fftdenoise"],
+            )
+
+        elif rigid_method == "cv":
+            logger.info("NOTE: Performing OpenCV based rigid registration")
         logger.info(
             "-- Rigid registration complete, %0.2f sec." % (time.time() - t_rigid)
         )
