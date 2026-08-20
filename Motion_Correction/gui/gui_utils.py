@@ -22,6 +22,7 @@ DB_KEYS = [
     "h5py_key",
     "force_sktiff",
     "bruker_bidirectional",
+    "force_square",
 ]
 FILE_KEYS = ["data_path", "save_path0", "fast_disk"]
 COMBO_KEYS = ["input_format", "algorithm", "nonrigid_transform", "rigid_norm_method"]
