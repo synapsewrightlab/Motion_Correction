@@ -89,7 +89,7 @@ def get_pc_metrics(
     )
     pclow = torch.from_numpy(pclow).to(device).float()
     pchigh = torch.from_numpy(pchigh).to(device).float()
-    regPC = torch.stack((pclow, pchigh), dim=0).cpy().numpy()
+    regPC = torch.stack((pclow, pchigh), dim=0).cpu().numpy()
 
     regDX = pc_register(
         pclow,
