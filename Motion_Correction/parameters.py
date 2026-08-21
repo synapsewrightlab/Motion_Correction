@@ -540,8 +540,8 @@ SETTINGS = {
             "default": 50,
             "description": "Number of iterations per level",
         },
-        "warp_template_stack_num": {
-            "gui_name": "Warp template stack num",
+        "warp_template_file_num": {
+            "gui_name": "Warp template file num",
             "type": int,
             "min": 2,
             "max": 10000,
@@ -553,7 +553,7 @@ SETTINGS = {
             "type": int,
             "min": 1,
             "max": 50,
-            "default": 5,
+            "default": 8,
             "description": "Row and column numbers for splitting FOV for estimating transformation matrices",
         },
         "warp_overlap_pix_frac": {
