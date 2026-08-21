@@ -1,11 +1,13 @@
 import os
 
 import torch
+import time
 import numpy as np
 import logging
 
 from . import parameters
 from .suite2p_registration import s2p_registration_wrapper
+from .patchwarp_registration import patchwarp_wrapper
 from .metrics import get_pc_metrics
 
 logger = logging.getLogger(__name__)
@@ -73,8 +75,9 @@ def pipeline(
             device=device,
         )
 
-        # Registration metrics later from suite2p
+        # Registration metrics from suite2p
         logger.info(f"-- Performing registration metrics calculations")
+        m_time = time.time()
         out_chan1 = get_pc_metrics(
             f_reg=f_reg_chan1,
             yrange=reg_outputs["yrange"],
@@ -101,11 +104,62 @@ def pipeline(
                 reg_outputs["regPC_chan2"],
                 reg_outputs["regDX_chan2"],
             ) = out_chan2
-
-        # Save outputs
-        np.save(os.path.join(save_path, "reg_outputs.npy"), reg_outputs)
+        logger.info(
+            "-- Done performing metrics calculations, %0.2f sec."
+            % (time.time() - m_time)
+        )
 
     elif algorithm == "PatchWarp":
-        raise ValueError("Currently only works with Suite2p registration")
+        align_by_chan2 = settings["Patchwarp_settings"]["align_by_chan2"]
+        reg_outputs = patchwarp_wrapper.patchwarp_wrapper(
+            f_raw_chan1=f_raw_chan1,
+            f_reg_chan1=f_reg_chan1,
+            f_raw_chan2=f_raw_chan2,
+            f_reg_chan2=f_reg_chan2,
+            refImg=None,
+            align_by_chan2=align_by_chan2,
+            save_path=save_path,
+            settings=settings["Patchwarp_settings"],
+            save_tif=settings["save_tif"],
+            downsampled_frames=settings["downsampled_frames"],
+            device=device,
+        )
+
+        # Registration metrics from suite2p
+        logger.info(f"-- Performing registration metrics calculations")
+        m_time = time.time()
+        out_chan1 = get_pc_metrics(
+            f_reg=f_reg_chan1,
+            yrange=reg_outputs["yrange"],
+            xrange=reg_outputs["xrange"],
+            settings=settings["Suite2p_settings"],
+        )
+
+        (
+            reg_outputs["tPC_chan1"],
+            reg_outputs["regPC_chan1"],
+            reg_outputs["regDX_chan1"],
+        ) = out_chan1
+
+        if f_reg_chan2 is not None:
+            out_chan2 = get_pc_metrics(
+                f_reg=f_reg_chan2,
+                yrange=reg_outputs["yrange"],
+                xrange=reg_outputs["xrange"],
+                settings=settings["Suite2p_settings"],
+            )
+
+            (
+                reg_outputs["tPC_chan2"],
+                reg_outputs["regPC_chan2"],
+                reg_outputs["regDX_chan2"],
+            ) = out_chan2
+        logger.info(
+            "-- Done performing metrics calculations, %0.2f sec."
+            % (time.time() - m_time)
+        )
+
+    # Save outputs
+    np.save(os.path.join(save_path, "reg_outputs.npy"), reg_outputs)
 
     return reg_outputs
