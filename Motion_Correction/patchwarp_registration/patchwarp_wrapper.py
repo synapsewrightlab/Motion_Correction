@@ -5,7 +5,11 @@ import time
 import logging
 
 from .patchwarp_rigid_pyramid import patchwarp_rigid_pyramid
+from .patchwarp_rigid_cv import patchwarp_rigid_cv
+from .patchwarp_save_tiff import patchwarp_save_tiff
 from ..io.assign_reg_io import assign_reg_io
+
+from ..suite2p_registration.make_summary import make_summary_video
 
 logger = logging.getLogger(__name__)
 
@@ -109,11 +113,30 @@ def patchwarp_wrapper(
 
         elif rigid_method == "cv":
             logger.info("NOTE: Performing OpenCV based rigid registration")
+            rigid_outputs = patchwarp_rigid_cv(
+                f_align_in=f_align_in,
+                f_align_out=f_align_out,
+                f_alt_in=f_alt_in,
+                f_alt_out=f_alt_out,
+                refImg=refImg,
+                n_ch=nchannels,
+                batch_size=settings["batch_size"],
+                rigid_template_block_size=settings["rigid_template_block_size"],
+                rigid_template_file_num=settings["rigid_template_file_num"],
+                factor=settings["cv_factor"],
+                marginh=settings["cv_marginh"],
+                marginw=settings["cv_marginw"],
+                sigma_smoothing=settings["cv_sigma_smoothing"],
+                sigma_normalization=settings["cv_sigma_normalization"],
+                normalization_offset=settings["cv_normalization_offset"],
+                to_equalize_histogram=settings["to_equalize_histogram"],
+                cv_corr_threshold=settings["cv_corr_threshold"],
+            )
         logger.info(
             "-- Rigid registration complete, %0.2f sec." % (time.time() - t_rigid)
         )
     else:
-        logger.info(f"Skipping rigid regitration")
+        logger.info(f"Skipping rigid registration")
         rigid_outputs = {
             "refImg": None,
             "meanImg": None,
@@ -126,3 +149,33 @@ def patchwarp_wrapper(
         }
 
     # Check to run non-rigid registration
+    if settings["do_nonrigid"]:
+        logger.info("STILL NEED TO WRITE NON-RIGID REGISTRATION")
+        reg_outputs = rigid_outputs
+
+    else:
+        logger.info(f"Skipping nonrigid registration")
+        reg_outputs = rigid_outputs
+
+    # Output all the tiff files if specified
+    if tif_align_out:
+        logger.info(f"-- Saving aligned images as tif files")
+        patchwarp_save_tiff(f_align_out, tif_align_out, settings["batch_size"])
+
+    if tif_alt_out:
+        patchwarp_save_tiff(f_alt_out, tif_alt_out, settings["batch_size"])
+
+    # Make the summary output
+    logger.info(
+        f"---- Making the summary tif video downsampled by {downsampled_frames}"
+    )
+    summary_time = time.time()
+    make_summary_video(f_align_out, downsampled_frames=downsampled_frames)
+    if nchannels > 1:
+        make_summary_video(f_alt_out, downsampled_frames=downsampled_frames)
+
+    logger.info(
+        "---- Done making summary video, %0.2f sec." % (time.time() - summary_time)
+    )
+
+    return reg_outputs
