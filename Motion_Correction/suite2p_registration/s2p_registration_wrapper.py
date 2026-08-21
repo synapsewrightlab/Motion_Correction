@@ -229,9 +229,14 @@ def s2p_registration_wrapper(
     logger.info(
         f"---- Making the summary tif video downsampled by {downsampled_frames}"
     )
+    summary_time = time.time()
     make_summary_video(f_align_out, downsample_frames=downsampled_frames)
     if nchannels > 1:
         make_summary_video(f_alt_out, downsample_frames=downsampled_frames)
+
+    logger.info(
+        "---- Done making summary video, %0.2f sec." % (time.time() - summary_time)
+    )
 
     # Package results for output
     reg_outputs = registration_outputs_to_dict(
