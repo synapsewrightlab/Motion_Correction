@@ -31,7 +31,7 @@ def patchwarp_rigid_pyramid(
     pyramid_template_fftdenoise,
 ):
     """
-    Function to perform rigid motion correction. Based on the method developed by Akinori Mitani
+    Function to perform rigid motion correction. Based on the pyramid method developed by Akinori Mitani
 
 
     PARAMETERS
@@ -77,6 +77,31 @@ def patchwarp_rigid_pyramid(
             Remove strong period noise (i.e., ripple PMT noise) from the template image
 
     OUTPUT
+        rigid_outputs : dict
+            Dict containing the registration outputs including
+                refImg : np.ndarray
+                    Array of reference image used of shape (Ly, Lx)
+
+                meanImg : np.ndarray
+                    Array of the mean registered image of shape (Ly, Lx)
+
+                meanImg_ch2 : np.ndarray
+                    Array of the mean registered image for ch2
+
+                yoff : np.ndarray
+                    1d array of the y offsets for each frame in y dimension
+
+                xoff : np.ndarray
+                    1d array of the x offsets for each frame in x dimension
+
+                corrXY : np.ndarray
+                    1d array of the max XY correlations for each frame
+
+                yrange : tuple
+                    Tuple containing the min and max y dimension shifts
+
+                xrange : tuple
+                    Tuple containing the min and max of x dimension shifts
 
 
 
@@ -136,7 +161,7 @@ def patchwarp_rigid_pyramid(
         initial_reference_image = pre_refImg
 
     # Get all the offsets
-    xoff = np.zeors(nframes)
+    xoff = np.zeros(nframes)
     yoff = np.zeros(nframes)
     corrXY = np.zeros(nframes)
 
@@ -156,18 +181,18 @@ def patchwarp_rigid_pyramid(
             ## Get the previous frames from the last block to make the reference
             ref_end = ordered_blocks[iblock - 1][1]
             ref_start = ref_end - rigid_template_file_num - 1
-            reference_image = np.nanmean(f_align_out[ref_start, ref_end], axis=0)
+            reference_image = np.nanmean(f_align_out[ref_start:ref_end], axis=0)
         ## Go two blocks back to get the adjacent blocks frames for reference
         else:
             ## Check if block is going backwards from the center
             if iblock % 2 == 0:
                 ref_start = ordered_blocks[iblock - 2][0]
                 ref_end = ref_start + rigid_template_file_num - 1
-                reference_image = np.nanmean(f_align_out[ref_start, ref_end], axis=0)
+                reference_image = np.nanmean(f_align_out[ref_start:ref_end], axis=0)
             else:
                 ref_end = ordered_blocks[iblock - 2][1]
                 ref_start = ref_end - rigid_template_file_num - 1
-                reference_image = np.nanmean(f_align_out[ref_start, ref_end], axis=0)
+                reference_image = np.nanmean(f_align_out[ref_start:ref_end], axis=0)
 
         orig_block_idx = block_idxs.index(block)
         refImg[orig_block_idx] = reference_image
@@ -232,10 +257,12 @@ def patchwarp_rigid_pyramid(
             futures = {executor.submit(pyramid_parallel, job): job for job in jobs}
             for future in as_completed(futures):
                 y, x, c, mean, mean_alt = future.result()
-                logger.info(f"------ Finished with frames {start}-{end}")
-                xoff[start:end] = x
-                yoff[start:end] = y
-                corrXY[start:end] = c
+                f_start = futures[future][8]
+                f_end = futures[future][9]
+                logger.info(f"------ Finished with frames {f_start}-{f_end}")
+                xoff[f_start:f_end] = x
+                yoff[f_start:f_end] = y
+                corrXY[f_start:f_end] = c
                 temp_mean.append(mean)
                 temp_mean_alt.append(mean_alt)
 
@@ -273,7 +300,7 @@ def patchwarp_rigid_pyramid(
     rigid_outputs = {
         "refImg": refImg,
         "meanImg": meanImg,
-        "meanImg_chan2": meanImg_chan2,
+        "meanImg_ch2": meanImg_chan2,
         "yoff": yoff,
         "xoff": xoff,
         "corrXY": corrXY,
