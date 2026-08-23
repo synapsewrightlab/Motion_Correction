@@ -498,7 +498,7 @@ def matlab_fspecial_disk(radius):
     a1 = np.arcsin(np.clip(m1 / radius, -1, 1))
     a2 = np.arcsin(np.clip(m2 / radius, -1, 1))
     sgrid = (
-        radius**2 * (0.5(a2 - a1) + 0.25 * (np.sin(2 * a2) - np.sin(2 * a1)))
+        radius**2 * (0.5 * (a2 - a1) + 0.25 * (np.sin(2 * a2) - np.sin(2 * a1)))
         - (maxxy - 0.5) * (m2 - m1)
         + (m1 + minxy + 0.5)
     )

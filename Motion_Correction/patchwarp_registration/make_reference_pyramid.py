@@ -88,8 +88,8 @@ def make_template(image_stack, threshold, fftdenoise):
 
     nframes, Ly, Lx = image_stack.shape
 
-    sLy = np.ceil(Ly / reduction_ratio[0])
-    sLx = np.ceil(Lx / reduction_ratio[1])
+    sLy = int(np.ceil(Ly / reduction_ratio[0]))
+    sLx = int(np.ceil(Lx / reduction_ratio[1]))
 
     # reduce image size for correlation
     small_stack = np.zeros((nframes, sLy, sLx))
@@ -100,14 +100,14 @@ def make_template(image_stack, threshold, fftdenoise):
 
     # Identify selected frames
     image_2d = np.reshape(small_stack, (nframes, sLy * sLx))
-    selected = np.ones((nframes, 1), dtype=bool)
+    selected = np.ones(nframes, dtype=bool)
 
     # Repeatedly update reference frames based on their correlation
     for iter in range(max_iter):
         # Get average to compare against
         mean_2d = np.nanmean(image_2d[selected, :], axis=0)
         # Correlate agains the average
-        c = np.zeros((nframes, 1))
+        c = np.zeros(nframes)
         for i in range(nframes):
             c[i] = np.corrcoef(image_2d[i, :], mean_2d)[0, 1]
 

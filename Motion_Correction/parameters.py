@@ -386,7 +386,7 @@ SETTINGS = {
             "min": None,
             "max": None,
             "default": "cv",
-            "description": "Can be ['cv', 'pyramid']",
+            "description": "Can be ['cv', 'pyramid'].",
         },
         "rigid_template_block_size": {
             "gui_name": "Rigid template block size",
@@ -397,7 +397,7 @@ SETTINGS = {
             "description": "Number of image blocks per imaging session to split for rigid correction",
         },
         "rigid_template_frame_num": {
-            "gui_name": "Rigid template number",
+            "gui_name": "Rigid template frame number",
             "type": int,
             "min": 2,
             "max": 10000,
@@ -410,7 +410,7 @@ SETTINGS = {
             "min": None,
             "max": None,
             "default": "rank",
-            "description": "Can be ['rank', 'local']",
+            "description": "Can be ['rank', 'local'].",
         },
         "pyramid_norm_radius": {
             "gui_name": "Pyramid norm. radius",
@@ -484,7 +484,7 @@ SETTINGS = {
             "default": 0,
             "description": "Sigma for normalizing images. 0 will skip normalization",
         },
-        "cv_nomalization_offset": {
+        "cv_normalization_offset": {
             "gui_name": "CV normalization offset",
             "type": float,
             "min": 0,
@@ -540,8 +540,8 @@ SETTINGS = {
             "default": 50,
             "description": "Number of iterations per level",
         },
-        "warp_template_file_num": {
-            "gui_name": "Warp template file num",
+        "warp_template_frame_num": {
+            "gui_name": "Warp template frame num",
             "type": int,
             "min": 2,
             "max": 10000,

@@ -25,7 +25,14 @@ DB_KEYS = [
     "force_square",
 ]
 FILE_KEYS = ["data_path", "save_path0", "fast_disk"]
-COMBO_KEYS = ["input_format", "algorithm", "nonrigid_transform", "rigid_norm_method"]
+COMBO_KEYS = [
+    "input_format",
+    "algorithm",
+    "nonrigid_transform",
+    "rigid_method",
+    "pyramid_norm_method",
+    "nonrigid_transform_method",
+]
 
 
 class MyLog(QtCore.QObject):

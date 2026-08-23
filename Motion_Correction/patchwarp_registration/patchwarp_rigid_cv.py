@@ -146,7 +146,7 @@ def patchwarp_rigid_cv(
             f"Making initial reference image from frames centered on {center_frame}"
         )
         t_ref = time.time()
-        initial_start = center_frame - int((rigid_template_file_num - 1) / 2)
+        initial_start = center_frame - int(rigid_template_file_num / 2)
         initial_end = center_frame + int(rigid_template_file_num / 2)
 
         # make the initial reference image
