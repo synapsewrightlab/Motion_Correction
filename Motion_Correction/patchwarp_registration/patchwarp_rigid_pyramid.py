@@ -146,7 +146,7 @@ def patchwarp_rigid_pyramid(
         initial_end = center_frame + int(rigid_template_file_num / 2)
 
         # make the initial reference image
-        initial_frames = f_align_in[initial_start:initial_end]
+        initial_frames = f_align_in[initial_start:initial_end].copy()
         initial_reference_image = make_reference_image(
             initial_frames,
             threshold=pyramid_template_threshold,
@@ -197,11 +197,13 @@ def patchwarp_rigid_pyramid(
         orig_block_idx = block_idxs.index(block)
         refImg[orig_block_idx] = reference_image
 
+        # Change if you want to max out cpus
+        n_workers = os.cpu_count() - 2
+
         # Set up the batch idxs
         start = block[0]
         end = block[1]
-        step = batch_size
-        batch_idxs = [(i, min(i + step, end)) for i in range(start, end, step)]
+        batch_idxs = utils.get_batch_ids(start, end, n_workers, batch_size)
 
         # Prepare to parallize across batches
         ## Grab relevant memmap info
@@ -221,8 +223,6 @@ def patchwarp_rigid_pyramid(
             output_path_alt = None
             output_shape_alt = None
 
-        # Change if you want to max out cpus
-        n_workers = os.cpu_count() - 2
         pyramid_args = [
             pyramid_norm_method,
             pyramid_norm_radius,
@@ -267,7 +267,7 @@ def patchwarp_rigid_pyramid(
                 temp_mean_alt.append(mean_alt)
 
         block_mean = np.nanmean(temp_mean, axis=0)
-        if temp_mean_alt[0]:
+        if temp_mean_alt[0] is not None:
             block_mean_alt = np.nanmean(temp_mean_alt, axis=0)
         else:
             block_mean_alt = None
@@ -283,7 +283,7 @@ def patchwarp_rigid_pyramid(
     ymin = np.ceil(np.abs(yoff).max())
     xmin = np.ceil(np.abs(xoff).max())
     ymax = Ly - ymin
-    xmax = Lx - ymax
+    xmax = Lx - xmin
 
     yrange = [int(ymin), int(ymax)]
     xrange = [int(xmin), int(xmax)]
