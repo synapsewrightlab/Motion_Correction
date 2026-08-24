@@ -57,7 +57,7 @@ def make_reference_image(
     template = make_template(image_stack, corr_thresh, factor)
 
     # Register
-    for _ in range(iterations):
+    for i in range(iterations):
         ymax, xmax, _ = cv_registration.cv_compute_shifts(
             refImg=template,
             f_reg=image_stack,
@@ -118,3 +118,5 @@ def make_template(image_stack, corr_thresh, factor):
 
     # Define the reference image
     template = np.nanmean(image_stack[selected, :, :], axis=0)
+
+    return template
