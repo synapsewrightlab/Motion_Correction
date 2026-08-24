@@ -99,7 +99,7 @@ def get_pc_metrics(
         maxregshift=settings["maxregshift"],
         maxregshiftNR=settings["maxregshiftNR"],
         snr_thresh=settings["snr_thresh"],
-        spatial_taper=settings["spatial_tapper"],
+        spatial_taper=settings["spatial_taper"],
     )
 
     return tPC, regPC, regDX
