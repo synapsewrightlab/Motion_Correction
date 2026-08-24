@@ -110,7 +110,7 @@ def cv_parallel(args):
         write=True,
     )
 
-    batch_frames = f_in[start:end]
+    batch_frames = f_in[start:end].copy()
 
     # Compute the shifts
     yoff, xoff, corrXY = cv_compute_shifts(
@@ -153,7 +153,7 @@ def cv_parallel(args):
             write=True,
         )
 
-        alt_frames = f_in_alt[start:end]
+        alt_frames = f_in_alt[start:end].copy()
 
         # Shift frames
         corrected_alt = cv_shift_frames(alt_frames, yoff=yoff, xoff=xoff)
@@ -294,7 +294,7 @@ def cv_shift_frames(f_reg, yoff, xoff):
     f_correct = np.zeros(f_reg.shape).astype(np.float64)
 
     for i in range(f_reg.shape[0]):
-        f = f_reg.shape[i, :, :]
+        f = f_reg[i, :, :]
         shifted = subshift(f, shift=(yoff[i], xoff[i]), order=3)
         f_correct[i, :, :] = shifted
 
@@ -358,6 +358,7 @@ def align_frame(
 
     f_reg = preprocess_img(
         img,
+        factor,
         sigma_smoothing,
         sigma_normalization,
         normalization_offset,
@@ -373,4 +374,4 @@ def align_frame(
     dx = subpix_loc[0] * factor - marginw
     dy = subpix_loc[1] * factor - marginh
 
-    return dy, dx, max_val
+    return -dy, -dx, max_val
