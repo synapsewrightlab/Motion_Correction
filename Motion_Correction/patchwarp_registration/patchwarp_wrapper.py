@@ -170,9 +170,9 @@ def patchwarp_wrapper(
         f"---- Making the summary tif video downsampled by {downsampled_frames}"
     )
     summary_time = time.time()
-    make_summary_video(f_align_out, downsampled_frames=downsampled_frames)
+    make_summary_video(f_align_out, downsample_frames=downsampled_frames)
     if nchannels > 1:
-        make_summary_video(f_alt_out, downsampled_frames=downsampled_frames)
+        make_summary_video(f_alt_out, downsample_frames=downsampled_frames)
 
     logger.info(
         "---- Done making summary video, %0.2f sec." % (time.time() - summary_time)
