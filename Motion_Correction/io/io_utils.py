@@ -167,7 +167,8 @@ def init_database(db0):
     iplane = db0.get("iplane", np.arange(0, nplanes))
     has_lines = False
 
-    base_name = "_".join(db0["file_list"][0].split("_")[:2])
+    base_name = Path(db0["file_list"][0]).stem
+    base_name = "_".join(base_name.split("_")[:2])
 
     # Deal with multiple rois if specified
     if "lines" in db0 and db0["lines"] is not None and len(db0["lines"]) > 0:
