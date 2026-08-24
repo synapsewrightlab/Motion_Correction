@@ -150,7 +150,7 @@ def patchwarp_rigid_cv(
         initial_end = center_frame + int(rigid_template_file_num / 2)
 
         # make the initial reference image
-        initial_frames = f_align_in[initial_start:initial_end]
+        initial_frames = f_align_in[initial_start:initial_end].copy()
         initial_reference_image = make_reference_image(
             initial_frames,
             iterations=4,
@@ -178,6 +178,8 @@ def patchwarp_rigid_cv(
     meanImg = [None for _ in range(len(ordered_blocks))]
     meanImg_ch2 = [None for _ in range(len(ordered_blocks))]
 
+    print(ordered_blocks)
+
     # Iterate through the blocks
     for iblock, block in enumerate(ordered_blocks):
         block_time = time.time()
@@ -204,11 +206,13 @@ def patchwarp_rigid_cv(
         orig_block_idx = block_idxs.index(block)
         refImg[orig_block_idx] = reference_image
 
+        # Change if you want to max out cpus
+        n_workers = os.cpu_count() - 2
+
         # Set up the batch idxs
         start = block[0]
         end = block[1]
-        step = batch_size
-        batch_idxs = [(i, min(i + step, end)) for i in range(start, end, step)]
+        batch_idxs = utils.get_batch_ids(start, end, n_workers, batch_size)
 
         # Prepare to parallize across batches
         input_path = f_align_in.filename
@@ -222,8 +226,6 @@ def patchwarp_rigid_cv(
             output_path_alt = f_alt_out.filename
             output_shape_alt = f_alt_out.shape
 
-        # Change if you want to max out cpus
-        n_workers = os.cpu_count() - 2
         cv_args = [
             factor,
             marginh,
@@ -253,7 +255,7 @@ def patchwarp_rigid_cv(
         ]
 
         logger.info(
-            f"--- Performing pyramid registration on block {iblock} with {n_workers} workers"
+            f"--- Performing cv registration on block {iblock} with {n_workers} workers"
         )
 
         temp_mean = []
@@ -269,10 +271,10 @@ def patchwarp_rigid_cv(
                 yoff[f_start:f_end] = y
                 corrXY[f_start:f_end] = c
                 temp_mean.append(mean)
-                temp_mean_alt.append(mean)
+                temp_mean_alt.append(mean_alt)
 
         block_mean = np.nanmean(temp_mean, axis=0)
-        if temp_mean_alt[0]:
+        if temp_mean_alt[0] is not None:
             block_mean_alt = np.nanmean(temp_mean_alt, axis=0)
         else:
             block_mean_alt = None
@@ -288,7 +290,7 @@ def patchwarp_rigid_cv(
     ymin = np.ceil(np.abs(yoff).max())
     xmin = np.ceil(np.abs(xoff).max())
     ymax = Ly - ymin
-    xmax = Lx - ymax
+    xmax = Lx - xmin
 
     yrange = [int(ymin), int(ymax)]
     xrange = [int(xmin), int(xmax)]
@@ -297,15 +299,13 @@ def patchwarp_rigid_cv(
     refImg = np.array([utils.highpass_mean_image(x, 1.0) for x in refImg])
     meanImg = np.array([utils.highpass_mean_image(x, 1.0) for x in meanImg])
     if n_ch > 1:
-        meanImg_chan2 = np.array(
-            [utils.highpass_mean_image(x, 1.0) for x in meanImg_chan2]
-        )
+        meanImg_ch2 = np.array([utils.highpass_mean_image(x, 1.0) for x in meanImg_ch2])
 
     # Prepare the registration outputs
     rigid_outputs = {
         "refImg": refImg,
         "meanImg": meanImg,
-        "meanImg_ch2": meanImg_chan2,
+        "meanImg_ch2": meanImg_ch2,
         "yoff": yoff,
         "xoff": xoff,
         "corrXY": corrXY,
