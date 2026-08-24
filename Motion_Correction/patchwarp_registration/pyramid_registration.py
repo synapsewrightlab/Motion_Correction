@@ -95,7 +95,7 @@ def pyramid_parallel(args):
         write=True,
     )
 
-    batch_frames = f_in[start:end]
+    batch_frames = f_in[start:end].copy()
 
     # Compute the shifts
     yoff, xoff, corrXY = compute_shifts(
@@ -134,7 +134,7 @@ def pyramid_parallel(args):
             write=True,
         )
 
-        alt_frames = f_in_alt[start:end]
+        alt_frames = f_in_alt[start:end].copy()
 
         # Shift frames
         corrected_alt = shift_frames(alt_frames, yoff=yoff, xoff=xoff)
@@ -256,7 +256,7 @@ def shift_frames(f_reg, yoff, xoff):
     f_correct = np.zeros(f_reg.shape).astype(np.float64)
 
     for i in range(f_reg.shape[0]):
-        f = f_reg.shape[i, :, :]
+        f = f_reg[i, :, :]
         shifted = subshift(f, shift=(yoff[i], xoff[i]), order=3)
         f_correct[i, :, :] = shifted
 
