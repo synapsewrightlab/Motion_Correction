@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import cv2
 
@@ -18,6 +19,21 @@ def get_block_ids(arr_len, block_num):
         start = end
 
     return idxs
+
+
+def get_batch_ids(start, end, n_workers, max_step):
+    """Helper function to set the number of frames in each batched based on the number
+    of cpu workers
+    """
+    length = end - start
+
+    base_size = math.ceil(length / n_workers)
+
+    batch_size = min(base_size, max_step)
+
+    batch_idxs = [(i, min(i + batch_size, end)) for i in range(start, end, batch_size)]
+
+    return batch_idxs
 
 
 def reorder_blocks(arr):
