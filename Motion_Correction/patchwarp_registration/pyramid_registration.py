@@ -204,7 +204,7 @@ def compute_shifts(
     # Use on the center of the image for calculating shifts
     center_target = get_center(refImg, rigid_template_center_frac)
 
-    max_iter = np.ceil(np.sum(refImg.size - center_target.size) / 2)
+    max_iter = int(np.ceil(np.sum(refImg.size - center_target.size) / 2))
 
     for i in range(nframes):
         # Get center of the source frame
@@ -433,12 +433,12 @@ def rank_transform(img_stack):
     """Function to perform rank normalization of images"""
 
     # deal with 2d arrays
-    squeeze_back = img.ndim == 2
+    squeeze_back = img_stack.ndim == 2
     if squeeze_back:
-        img = img[np.newaxis, :, :]
+        img_stack = img_stack[np.newaxis, :, :]
 
-    result = np.zeros(img_stack.size)
-    for i in range(img_stack.size[0]):
+    result = np.zeros(img_stack.shape)
+    for i in range(img_stack.shape[0]):
         img = img_stack[i, :, :]
         _, _, ic = np.unique(img, return_index=True, return_inverse=True)
         result[i, :, :] = ic.reshape(img.shape)
